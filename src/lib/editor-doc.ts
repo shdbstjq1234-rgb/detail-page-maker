@@ -231,7 +231,16 @@ const DEFAULT_MEDIA: Partial<Record<SectionType, SectionLayout["media"]>> = {
  * TEXT/PHOTO 가 단조롭게 반복되지 않도록 섹션별 기본 배치·톤을 얹는다. (기존 layout 은 유지)
  */
 export function fromDetailPage(page: DetailPage, prevProduct?: ProductInput): EditorDoc {
-  let toneToggle = 0;
+  // 섹션이 스스로 정하는 톤(이 타입들은 배경을 건드리지 않는다)
+  const FIXED_TONE: Partial<Record<SectionType, "light" | "gray" | "dark">> = {
+    hero: "dark",
+    problem: "dark",
+    cta: "dark",
+    comparison: "gray",
+    howToUse: "gray",
+    review: "light",
+  };
+  let prevTone: "light" | "gray" | "dark" = "light";
   const sections: EditorSection[] = page.sections.map((s) => {
     // data URL(base64) 이미지는 doc 을 비대하게 만들어 저장을 실패시킨다 → 제거하고
     // 편집기의 "누끼컷으로 전체 이미지 제작"에서 Storage 저장본으로 채우게 한다.
@@ -240,9 +249,17 @@ export function fromDetailPage(page: DetailPage, prevProduct?: ProductInput): Ed
     const existing = sec.layout ?? {};
     const layout: SectionLayout = { ...existing };
     if (media && existing.media == null) layout.media = media;
-    // hero/cta/problem 은 자체 톤이 강하므로 건드리지 않고, 나머지를 흰/회색으로 번갈아
-    if (existing.tone == null && !["hero", "cta", "problem", "comparison", "review"].includes(s.type)) {
-      layout.tone = toneToggle++ % 2 === 1 ? "gray" : "light";
+
+    const fixed = FIXED_TONE[s.type];
+    if (fixed) {
+      prevTone = fixed;
+    } else if (existing.tone == null) {
+      // 바로 앞 섹션과 다른 톤을 골라 시각 리듬을 만든다 (같은 배경 두 번 연속 금지)
+      const next = prevTone === "gray" ? "light" : "gray";
+      layout.tone = next;
+      prevTone = next;
+    } else {
+      prevTone = existing.tone === "accent" ? "dark" : existing.tone;
     }
     if (Object.keys(layout).length) sec.layout = layout;
     return sec;

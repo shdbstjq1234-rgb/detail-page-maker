@@ -7,6 +7,7 @@ import type { EditorDoc } from "@/lib/editor-doc";
 import { uploadImage } from "@/lib/upload";
 import { STAGE_TEXT, stageProgress } from "@/lib/pipeline-stages";
 import { DropZone, Field, TextArea, TextInput } from "./ui";
+import { CategoryGuide } from "./CategoryGuide";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
 
@@ -263,6 +264,9 @@ export function SetupScreen({
           </div>
         </Field>
       </div>
+
+      {/* 카테고리별 체크리스트 */}
+      <CategoryGuide doc={doc} mutate={mutate} />
 
       {/* 추가 정보 (접힘) */}
       <button

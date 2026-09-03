@@ -65,12 +65,12 @@ export function ReviewSection({ data }: { data: DetailSectionData }) {
             <div className="mt-1">{avg ? <Stars n={avg} size={12} /> : null}</div>
           </div>
           <div className="h-10 w-px bg-line" />
-          <div className="flex-1 text-[12px] text-ink-soft">
+          <div className="flex-1 text-[14px] text-ink-soft">
             실제 구매 후기 <b className="text-ink">{real.length}건</b>
             {topTags.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {topTags.map((t) => (
-                  <span key={t} className="rounded-full bg-[color:var(--dp-bg-alt,#f0efec)] px-2 py-0.5 text-[10px] text-ink-soft">
+                  <span key={t} className="rounded-full bg-[color:var(--dp-bg-alt,#f0efec)] px-2.5 py-1 text-[12px] text-ink-soft">
                     #{t}
                   </span>
                 ))}
@@ -92,7 +92,7 @@ export function ReviewSection({ data }: { data: DetailSectionData }) {
       )}
 
       {reviews.length === 0 ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-line bg-white px-4 py-10 text-center text-[13px] text-ink-mute">
+        <p className="mt-6 rounded-2xl border border-dashed border-line bg-white px-5 py-12 text-center text-[15px] text-ink-mute">
           아직 등록된 후기가 없습니다.
         </p>
       ) : (
@@ -101,15 +101,15 @@ export function ReviewSection({ data }: { data: DetailSectionData }) {
             <div className="rounded-2xl bg-white p-5">
               <div className="flex items-center justify-between">
                 <Stars n={lead.rating ?? 5} />
-                <span className="text-[11px] text-ink-mute">{lead.author || "구매자"}</span>
+                <span className="text-[13px] text-ink-mute">{lead.author || "구매자"}</span>
               </div>
-              <p className="mt-2.5 text-[15px] leading-[1.7] text-ink-soft">{lead.body}</p>
+              <p className="mt-3 text-[17px] leading-[1.75] text-ink-soft">{lead.body}</p>
               {lead.tags && lead.tags.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1">
                   {lead.tags.map((t, i) => (
                     <span
                       key={i}
-                      className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                      className="rounded-full px-2.5 py-1 text-[11px] font-medium text-white"
                       style={{ background: "var(--dp-primary, #111)" }}
                     >
                       {t}
@@ -124,7 +124,7 @@ export function ReviewSection({ data }: { data: DetailSectionData }) {
               <div key={r.id} className="rounded-2xl bg-white p-4">
                 <div className="flex items-center justify-between">
                   <Stars n={r.rating ?? 5} size={11} />
-                  <span className="text-[10px] text-ink-mute">{r.author || "구매자"}</span>
+                  <span className="text-[12px] text-ink-mute">{r.author || "구매자"}</span>
                 </div>
                 <p className="mt-1.5 line-clamp-4 text-[12.5px] leading-[1.65] text-ink-soft">{r.body}</p>
               </div>
@@ -134,7 +134,7 @@ export function ReviewSection({ data }: { data: DetailSectionData }) {
       )}
 
       {hasDemo && (
-        <p className="mt-3 text-center text-[10px] text-ink-mute">
+        <p className="mt-4 text-center text-[12px] text-ink-mute">
           * 일부 후기는 디자인 확인용 AI 초안입니다. 실제 판매 전 실제 후기로 교체하세요.
         </p>
       )}

@@ -1,5 +1,6 @@
 import type { LlmClient, LlmCompleteOptions } from "./client";
 import { extractJson } from "@/lib/json";
+import { josa } from "@/lib/copy-voice";
 
 /**
  * 결정적 목업 LLM.
@@ -61,11 +62,13 @@ function parseContext(raw: string): Ctx {
   const features = arr(obj.specs).concat(arr(obj.sellingPoints)).slice(0, 6);
   const desc = str(obj.description);
   const sp = arr(obj.sellingPoints);
-  // 헤드라인 훅: 셀링포인트 > 설명 첫 문장 > 상황형 기본 훅 (제품 설명부터 하지 않는다)
-  const cat = category.replace(/\s+/g, "");
+  // 헤드라인 훅: 셀링포인트 > 설명 첫 문장 > 상황형 기본 훅.
+  // 스펙 나열(78%, 250mm, 폴리에스터…)은 헤드라인으로 쓰지 않는다 — 제품 설명부터 하지 않는다.
+  const cat = category.split("/").pop()!.replace(/\s+/g, "") || "제품";
+  const firstSentence = desc ? desc.split(/[.\n·]/)[0].trim() : "";
   const hook =
-    (sp[0] && sp[0].trim()) ||
-    (desc && desc.split(/[.\n·]/)[0].trim()) ||
+    pickHook(sp[0]) ||
+    pickHook(firstSentence) ||
     `${cat}, 이 부분이 은근히 중요합니다`;
   return {
     name,
@@ -81,6 +84,23 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []);
 const json = (o: unknown) => JSON.stringify(o, null, 2);
 
+/** 스펙 나열처럼 보이는 문자열 (헤드라인·소제목으로 쓰면 안 됨) */
+function looksLikeSpec(s: string): boolean {
+  if (!s) return true;
+  const t = s.trim();
+  if (t.length < 6 || t.length > 40) return true;
+  // 숫자+단위, 퍼센트, 소재 나열, 쉼표 3개 이상
+  if (/\d+\s*(%|mm|cm|ml|L|g|kg|호|구|W|V|인치)/i.test(t)) return true;
+  if ((t.match(/,/g) || []).length >= 2) return true;
+  if (/폴리에스터|스판덱스|나일론|면\s*\d|실리콘\s*\d|ABS|PP|PE|스테인리스/.test(t) && /\d/.test(t)) return true;
+  return false;
+}
+/** 헤드라인으로 쓸 만하면 다듬어서 반환, 아니면 빈 문자열 */
+function pickHook(s?: string): string {
+  const t = (s || "").trim();
+  return looksLikeSpec(t) ? "" : t;
+}
+
 function analysis(c: Ctx) {
   return {
     oneLiner: `${c.name} — 매일 쓰는 ${c.category}, 다시 고민 없이.`,
@@ -88,7 +108,7 @@ function analysis(c: Ctx) {
     keyFeatures: c.features,
     specs: c.features,
     targetCustomers: [
-      { label: "20~30대 1인 가구", context: `${c.category}를 자주 쓰지만 관리가 번거로운 사람`, priority: "primary" },
+      { label: "20~30대 1인 가구", context: `${josa(c.category, "을를")} 자주 쓰지만 관리가 번거로운 사람`, priority: "primary" },
       { label: "30~40대 주부", context: "가족이 매일 쓰는 물건은 검증된 걸 사고 싶은 사람", priority: "secondary" },
     ],
     customerProblems: [
@@ -147,7 +167,7 @@ function pagePlan(c: Ctx) {
     { id: "s-hero", type: "hero", message: `${c.name}, 한 장으로 이해되는 이유`, reason: "첫 화면에서 제품 정체성과 최강 USP 노출", imageRoles: ["heroMain"] },
     { id: "s-usp", type: "usp", message: "가장 강한 장점 3가지", reason: "스크롤 초반에 핵심 가치 압축 전달", imageRoles: ["productCutout", "infographic"] },
     { id: "s-problem", type: "problem", message: "이런 불편, 겪어봤다면", reason: "공감 → 몰입 유도", imageRoles: ["usageScene"] },
-    { id: "s-solution", type: "solution", message: `그래서 ${c.name}은 이렇게 만들었다`, reason: "문제 바로 뒤에 해결 제시", imageRoles: ["featureExplainer"] },
+    { id: "s-solution", type: "solution", message: `그래서 ${josa(c.name, "은는")} 이렇게 만들었다`, reason: "문제 바로 뒤에 해결 제시", imageRoles: ["featureExplainer"] },
     { id: "s-feature", type: "feature", message: "핵심 기능 한눈에", reason: "기능을 시각적으로 스캔 가능하게", imageRoles: ["featureExplainer", "detailCloseup"] },
     { id: "s-featureDetail", type: "featureDetail", message: "가장 중요한 기능 깊게 보기", reason: "구매 확신이 필요한 기능 1개 심화", imageRoles: ["detailCloseup", "structure"] },
     { id: "s-lifestyle", type: "lifestyle", message: "내 공간에 두면 이런 느낌", reason: "소유 후 장면 상상 유도", imageRoles: ["lifestyle", "usageScene"] },
@@ -195,7 +215,7 @@ function copyFor(label: string, c: Ctx) {
       return {
         ...base,
         headline: "왜 이걸 고르는지, 짧게 말하면",
-        subheadline: `${c.name}을 다시 찾게 되는 이유는 몇 가지로 좁혀집니다.`,
+        subheadline: `${josa(c.name, "을를")} 다시 찾게 되는 이유는 몇 가지로 좁혀집니다.`,
         bullets: f.slice(0, 3).map(benefitLine),
       };
     case "problem":
@@ -212,7 +232,7 @@ function copyFor(label: string, c: Ctx) {
     case "solution":
       return {
         ...base,
-        headline: `그래서 ${short(c.name)}은 이렇게 만들었습니다`,
+        headline: `그래서 ${josa(short(c.name), "은는")} 이렇게 만들었습니다`,
         subheadline: "괜히 기능만 늘리지 않고, 자주 쓰는 부분에 집중했습니다.",
         bullets: f.slice(0, 4).map((x) => `${short(x)} — 실제 쓰는 상황을 기준으로 잡았습니다.`),
       };
@@ -224,7 +244,7 @@ function copyFor(label: string, c: Ctx) {
         bullets: f.map((x) => `${short(x)} — 필요할 때 바로, 쓰고 나면 간단하게.`),
       };
     case "featureDetail": {
-      const detailTopic = f[0] && !/기능|사용|마감|품질/.test(f[0]) ? `${short(f[0])}, ` : "";
+      const detailTopic = f[0] && !looksLikeSpec(f[0]) && !/기능|사용|마감|품질/.test(f[0]) ? `${short(f[0])}, ` : "";
       return {
         ...base,
         headline: `${detailTopic}왜 이 부분을 신경 썼냐면`,

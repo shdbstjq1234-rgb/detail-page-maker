@@ -33,9 +33,9 @@ export function FeatureSection({ data }: { data: DetailSectionData }) {
       {bullets.length > 3 && (
         <ul className="mt-6 divide-y divide-line rounded-2xl bg-white">
           {bullets.slice(3).map((b, i) => (
-            <li key={i} className="flex items-center gap-3 px-4 py-4 text-[14px] text-ink-soft">
+            <li key={i} className="flex items-center gap-4 px-5 py-5 text-[16px] text-ink-soft">
               <span
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
                 style={{ background: "var(--dp-primary, #111)" }}
               >
                 {i + 4}

@@ -10,6 +10,35 @@
  */
 import type { SectionCopy } from "@/types/detail-page";
 
+/** 마지막 글자에 받침이 있는지 (한글만 판정, 숫자·영문은 통상 발음 기준) */
+export function hasFinalConsonant(word: string): boolean {
+  const w = (word || "").trim().replace(/[)\]}"'’」』]+$/, "");
+  const ch = w[w.length - 1];
+  if (!ch) return false;
+  const code = ch.charCodeAt(0);
+  if (code >= 0xac00 && code <= 0xd7a3) return (code - 0xac00) % 28 !== 0;
+  // 숫자: 0,1,3,6,7,8 은 받침 있음(영,일,삼,육,칠,팔)
+  if (/[0-9]/.test(ch)) return "013678".includes(ch);
+  // 영문: l, m, n, ng 등은 받침 취급
+  if (/[a-zA-Z]/.test(ch)) return "lmnrLMNR".includes(ch);
+  return false;
+}
+
+/** 받침에 맞는 조사를 붙인다. josa("양말","은는") → "양말은" */
+export function josa(word: string, pair: "은는" | "이가" | "을를" | "와과" | "으로로" | "이라라"): string {
+  const has = hasFinalConsonant(word);
+  const table: Record<string, [string, string]> = {
+    은는: ["은", "는"],
+    이가: ["이", "가"],
+    을를: ["을", "를"],
+    와과: ["과", "와"],
+    으로로: ["으로", "로"],
+    이라라: ["이라", "라"],
+  };
+  const [withC, withoutC] = table[pair];
+  return `${word}${has ? withC : withoutC}`;
+}
+
 /** 반드시 피하는 표현 (QA 가 이 목록으로 검사) */
 export const BANNED_PATTERNS: RegExp[] = [
   /제공합니다|제공하여|제공하는|선사합니다|선사하는/,

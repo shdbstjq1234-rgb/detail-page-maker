@@ -10,16 +10,16 @@ export function ProblemSection({ data }: { data: DetailSectionData }) {
     <SectionShell tone="dark">
       <Eyebrow>이런 적, 있으셨죠</Eyebrow>
       <Headline className="text-white">{copy.headline}</Headline>
-      {copy.subheadline && <p className="mt-4 text-[14px] leading-[1.75] text-white/55">{copy.subheadline}</p>}
+      {copy.subheadline && <p className="mt-4 max-w-[620px] text-[17px] leading-[1.75] text-white/55">{copy.subheadline}</p>}
 
       {copy.bullets && (
         <ul className="mt-8 space-y-0">
           {copy.bullets.map((b, i) => (
             <li
               key={i}
-              className="flex items-start gap-3 border-b border-white/10 py-4 text-[15px] leading-relaxed text-white/80 last:border-0"
+              className="flex items-start gap-3 border-b border-white/10 py-5 text-[18px] leading-relaxed text-white/80 last:border-0"
             >
-              <span aria-hidden className="text-[18px] leading-none text-white/25">
+              <span aria-hidden className="text-[22px] leading-none text-white/25">
                 “
               </span>
               {b}

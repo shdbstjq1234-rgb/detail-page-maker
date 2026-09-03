@@ -8,10 +8,10 @@ function Cell({ v, ours }: { v: string | boolean; ours: boolean }) {
         ○
       </span>
     ) : (
-      <span className="text-[15px] text-ink-mute">✕</span>
+      <span className="text-[18px] text-ink-mute">✕</span>
     );
   }
-  return <span className={`text-[13px] ${ours ? "font-semibold text-ink" : "text-ink-mute"}`}>{v}</span>;
+  return <span className={`text-[15px] ${ours ? "font-semibold text-ink" : "text-ink-mute"}`}>{v}</span>;
 }
 
 export function ComparisonSection({ data }: { data: DetailSectionData }) {
@@ -29,11 +29,11 @@ export function ComparisonSection({ data }: { data: DetailSectionData }) {
           <table className="w-full table-fixed border-collapse text-center text-sm">
             <thead>
               <tr>
-                <th className="w-[34%] bg-white px-3 py-3.5 text-left text-[11px] font-semibold text-ink-mute">항목</th>
+                <th className="w-[34%] bg-white px-4 py-4 text-left text-[13px] font-semibold text-ink-mute">항목</th>
                 {table.columns.map((c, i) => (
                   <th
                     key={i}
-                    className={`px-2 py-3.5 text-[12px] font-bold ${
+                    className={`px-3 py-4 text-[14px] font-bold ${
                       i === 0 ? "text-white" : "text-ink-mute"
                     }`}
                     style={i === 0 ? { background: "var(--dp-primary, #111)" } : { background: "#f4f3f0" }}
@@ -46,7 +46,7 @@ export function ComparisonSection({ data }: { data: DetailSectionData }) {
             <tbody>
               {table.rows.map((row, ri) => (
                 <tr key={ri} className="border-t border-line">
-                  <td className="px-3 py-3.5 text-left text-[13px] font-medium text-ink">{row.criterion}</td>
+                  <td className="px-4 py-4 text-left text-[15px] font-medium text-ink">{row.criterion}</td>
                   {row.values.map((v, vi) => (
                     <td
                       key={vi}
@@ -64,7 +64,7 @@ export function ComparisonSection({ data }: { data: DetailSectionData }) {
       )}
 
       {copy.bullets && (
-        <ul className="mt-5 space-y-1.5 text-[14px] leading-[1.7] text-ink-soft">
+        <ul className="mt-6 max-w-[620px] space-y-2 text-[16px] leading-[1.75] text-ink-soft">
           {copy.bullets.map((b, i) => (
             <li key={i}>· {b}</li>
           ))}

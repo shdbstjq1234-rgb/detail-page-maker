@@ -64,8 +64,8 @@ export function SectionShell({
   return (
     <section className={`w-full ${toneClass}`}>
       <div
-        className={`mx-auto w-full max-w-detail ${bleed ? "" : "px-6"} ${alignClass} ${className}`}
-        style={{ paddingTop: `${4.5 * pad}rem`, paddingBottom: `${4.5 * pad}rem` }}
+        className={`mx-auto w-full max-w-detail ${bleed ? "" : "px-10"} ${alignClass} ${className}`}
+        style={{ paddingTop: `${5 * pad}rem`, paddingBottom: `${5 * pad}rem` }}
       >
         {children}
       </div>
@@ -73,15 +73,26 @@ export function SectionShell({
   );
 }
 
+/**
+ * 읽기 좋은 줄 길이(최대 620px)로 텍스트를 가둔다.
+ * 780px 페이지에서 본문이 한 줄에 90자씩 늘어지는 것을 막는다. 이미지는 전체 폭 유지.
+ */
+export function TextCol({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const o = useSectionLayout();
+  return (
+    <div className={`w-full max-w-[620px] ${o?.align === "center" ? "mx-auto" : ""} ${className}`}>{children}</div>
+  );
+}
+
 /** 01 ─ SECTION 형태의 소제목 */
 export function Eyebrow({ children }: { children: ReactNode }) {
   const step = useContext(SectionStepContext);
   return (
-    <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em]">
+    <p className="mb-4 flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-[0.18em]">
       {step != null && (
         <>
           <span style={{ color: "var(--dp-primary, #111)" }}>{String(step).padStart(2, "0")}</span>
-          <span className="h-px w-5 bg-current opacity-30" />
+          <span className="h-px w-6 bg-current opacity-30" />
         </>
       )}
       <span style={{ color: "var(--dp-accent, #8b8b8b)" }}>{children}</span>
@@ -96,10 +107,12 @@ export function Headline({ children, className = "" }: { children: ReactNode; cl
     <h2
       className={className}
       style={{
-        fontSize: `calc(${clamp(27 * scale, 18, 52)}px * var(--dp-h-scale, 1))`,
+        // 780px 기준 섹션 헤드라인. 12~24자 한 줄이 시원하게 읽히는 크기.
+        fontSize: `calc(${clamp(34 * scale, 20, 60)}px * var(--dp-h-scale, 1))`,
         fontWeight: "var(--dp-h-weight, 800)" as unknown as number,
         letterSpacing: "var(--dp-h-tracking, -0.02em)",
         lineHeight: "var(--dp-h-leading, 1.32)" as unknown as number,
+        maxWidth: "18em",
       }}
     >
       {children}
@@ -110,7 +123,7 @@ export function Headline({ children, className = "" }: { children: ReactNode; cl
 export function Sub({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <p
-      className={`mt-4 text-[15px] text-ink-soft ${className}`}
+      className={`mt-4 max-w-[620px] text-[17px] text-ink-soft ${className}`}
       style={{ lineHeight: "var(--dp-body-leading, 1.75)" as unknown as number }}
     >
       {children}
@@ -126,14 +139,15 @@ export function StatRow({ stats, tone = "light" }: { stats: CopyStat[]; tone?: "
   return (
     <div className={`grid gap-2.5 ${stats.length >= 4 ? "grid-cols-4" : stats.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
       {stats.map((s, i) => (
-        <div key={i} className={`rounded-2xl ${cardBg} px-2 py-6 text-center`}>
+        <div key={i} className={`rounded-2xl ${cardBg} px-3 py-8 text-center`}>
+          {/* 780px 고정 페이지이므로 vw 가 아닌 고정 px 스케일 */}
           <div
-            className="text-[clamp(26px,7vw,40px)] font-extrabold leading-none tracking-tight"
+            className="text-[44px] font-extrabold leading-none tracking-tight"
             style={{ color: tone === "dark" ? "#fff" : "var(--dp-primary, #111)" }}
           >
             {s.value}
           </div>
-          <div className={`mt-2 text-[11px] leading-tight ${labelC}`}>{s.label}</div>
+          <div className={`mt-2.5 text-[13px] leading-tight ${labelC}`}>{s.label}</div>
         </div>
       ))}
     </div>
@@ -153,11 +167,11 @@ export function Bullets({
   if (!items?.length) return null;
   if (variant === "check") {
     return (
-      <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
+      <ul className="mt-7 grid gap-3 sm:grid-cols-2">
         {items.map((b, i) => (
           <li
             key={i}
-            className={`flex items-start gap-2.5 rounded-xl px-4 py-3.5 text-[14px] leading-relaxed ${
+            className={`flex items-start gap-2.5 rounded-xl px-5 py-4 text-[16px] leading-relaxed ${
               tone === "dark" ? "bg-white/5 text-white/85" : "border border-line text-ink-soft"
             }`}
           >
@@ -172,7 +186,7 @@ export function Bullets({
   }
   if (variant === "plain") {
     return (
-      <ul className={`mt-5 space-y-2 text-[14px] leading-[1.7] ${tone === "dark" ? "text-white/75" : "text-ink-soft"}`}>
+      <ul className={`mt-6 max-w-[620px] space-y-2.5 text-[16px] leading-[1.75] ${tone === "dark" ? "text-white/75" : "text-ink-soft"}`}>
         {items.map((b, i) => (
           <li key={i} className="flex gap-2">
             <span className="opacity-40">—</span>
@@ -183,15 +197,15 @@ export function Bullets({
     );
   }
   return (
-    <ul className="mt-6 space-y-2.5">
+    <ul className="mt-7 space-y-3">
       {items.map((b, i) => (
         <li
           key={i}
-          className={`flex gap-3 rounded-xl px-4 py-4 text-[14px] leading-relaxed ${
+          className={`flex gap-3 rounded-xl px-5 py-4 text-[16px] leading-relaxed ${
             tone === "dark" ? "bg-white/5 text-white/85" : "bg-[color:var(--dp-bg-alt,#f4f3f0)] text-ink-soft"
           }`}
         >
-          <span className="shrink-0 text-[15px] font-extrabold tabular-nums" style={{ color: "var(--dp-primary, #111)" }}>
+          <span className="shrink-0 text-[17px] font-extrabold tabular-nums" style={{ color: "var(--dp-primary, #111)" }}>
             {String(i + 1).padStart(2, "0")}
           </span>
           <span>{b}</span>
@@ -205,12 +219,12 @@ export function Bullets({
 export function MiniFeatures({ items }: { items: { icon?: string; title: string; desc?: string }[] }) {
   if (!items?.length) return null;
   return (
-    <div className="mt-7 grid grid-cols-3 gap-2 text-center">
+    <div className="mt-8 grid grid-cols-3 gap-3 text-center">
       {items.slice(0, 3).map((it, i) => (
-        <div key={i} className="rounded-xl border border-line px-2 py-4">
-          <div className="text-[18px]">{it.icon ?? "◦"}</div>
-          <div className="mt-1.5 text-[12px] font-bold text-ink">{it.title}</div>
-          {it.desc && <div className="mt-0.5 text-[10px] leading-tight text-ink-mute">{it.desc}</div>}
+        <div key={i} className="rounded-xl border border-line px-3 py-5">
+          <div className="text-[22px]">{it.icon ?? "◦"}</div>
+          <div className="mt-2 text-[14px] font-bold text-ink">{it.title}</div>
+          {it.desc && <div className="mt-1 text-[12px] leading-tight text-ink-mute">{it.desc}</div>}
         </div>
       ))}
     </div>
@@ -236,7 +250,7 @@ export function Figure({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={image.url} alt={image.alt} className="h-full w-full object-cover" loading="lazy" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-[13px] text-ink-mute">이미지 준비 중</div>
+        <div className="flex h-full w-full items-center justify-center text-[14px] text-ink-mute">이미지 준비 중</div>
       )}
     </div>
   );

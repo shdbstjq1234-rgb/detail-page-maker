@@ -9,18 +9,18 @@ export function LifestyleSection({ data }: { data: DetailSectionData }) {
 
   return (
     <SectionShell tone="light" bleed>
-      <div className="px-6">
+      <div className="px-10">
         <Eyebrow>IN YOUR LIFE</Eyebrow>
         <Headline>{copy.headline}</Headline>
         {copy.subheadline && <Sub>{copy.subheadline}</Sub>}
       </div>
 
-      <div className={media === "carousel" ? "px-6" : "px-6"}>
+      <div className="px-10">
         <SectionMedia images={images} layout={media} ratio="4/5" />
       </div>
 
       {copy.bullets && (
-        <ul className="mt-6 space-y-1.5 px-6 text-[14px] leading-[1.7] text-ink-soft">
+        <ul className="mt-6 space-y-2 px-10 text-[16px] leading-[1.75] text-ink-soft">
           {copy.bullets.map((b, i) => (
             <li key={i}>· {b}</li>
           ))}

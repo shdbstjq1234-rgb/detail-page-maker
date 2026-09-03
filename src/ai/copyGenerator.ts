@@ -2,6 +2,7 @@ import type { LlmClient } from "./llm/client";
 import { getLlmClient } from "./llm/client";
 import { extractJson } from "@/lib/json";
 import { COPY_SYSTEM, humanizeCopy } from "@/lib/copy-voice";
+import { detectPreset } from "@/lib/category-presets";
 import type {
   ProductInput,
   ProductAnalysis,
@@ -40,6 +41,7 @@ export async function generateSectionCopy(
 ): Promise<SectionCopy> {
   const llm = opts.llm ?? (await getLlmClient());
   const { input, analysis, usp } = ctx;
+  const preset = detectPreset({ name: input.name, category: input.category ?? analysis.category, description: input.description });
 
   const user = `아래 섹션의 카피를 작성해 JSON 으로 답하라.
 
@@ -52,6 +54,12 @@ export async function generateSectionCopy(
 [사는 이유] ${analysis.purchaseReasons.join(" / ")}
 [망설이는 이유] ${analysis.purchaseBarriers.join(" / ")}
 [주요 타깃] ${analysis.targetCustomers.map((t) => t.label).join(", ")}
+
+[${preset.label} 카테고리에서 소비자가 실제로 보는 것]
+- 소구점: ${preset.sellingPoints.join(" / ")}
+- 구매 전 걱정: ${preset.anxieties.join(" / ")}
+- 비교 기준: ${preset.comparison.join(", ")}
+※ 이 중 이 섹션에 해당하는 것만 골라 쓴다. 근거 없는 수치·인증은 절대 만들지 않는다.
 
 [이 섹션]
 - type: ${section.type}
