@@ -26,6 +26,8 @@ import {
 } from "@/lib/editor-doc";
 import { IMAGE_PRESETS } from "@/lib/image-presets";
 import { deriveTokens } from "@/lib/design-tokens";
+import { buildDesignDirection } from "@/lib/design-direction";
+import { extractFromImages } from "@/lib/image-colors";
 import { getProject, saveProjectDoc } from "@/lib/store";
 import type { DetailPage, PipelineEvent, SectionType } from "@/types/detail-page";
 
@@ -191,6 +193,59 @@ export default function EditorRoute() {
       .catch(() => {});
   }, [doc, planReady, mutate]);
 
+  // AI AUTO MODE — 상품 사진에서 실제 색을 뽑아 컬러 시스템을 자동으로 잡는다.
+  const directionReady = Boolean(doc?.designDirection);
+  useEffect(() => {
+    if (!doc || !doc.analysis || directionReady) return;
+    let alive = true;
+    const urls = (doc.product.images ?? []).map((i) => i.url).filter(Boolean);
+    (async () => {
+      const colors = urls.length ? await extractFromImages(urls) : null;
+      if (!alive) return;
+      mutate((d) => {
+        if (colors) d.productColors = colors;
+        d.designDirection = buildDesignDirection({
+          name: d.product.name,
+          category: d.product.category,
+          brandTone: d.product.brandTone,
+          price: d.product.price,
+          targetCustomer: d.product.targetCustomer,
+          description: d.product.description,
+          productColors: colors ?? d.productColors,
+          preset: "auto",
+          sections: d.sections.map((x) => ({ id: x.id, type: x.type })),
+        });
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [doc, directionReady, mutate]);
+
+  // 섹션이 추가/삭제되면 섹션 색 배정만 갱신
+  const sectionSig = doc?.sections.map((s) => `${s.id}:${s.type}`).join("|") ?? "";
+  useEffect(() => {
+    if (!doc?.designDirection) return;
+    const known = Object.keys(doc.designDirection.sectionStyles);
+    const now = doc.sections.map((s) => s.id);
+    if (now.length === known.length && now.every((id) => known.includes(id))) return;
+    mutate((d) => {
+      if (!d.designDirection) return;
+      d.designDirection = buildDesignDirection({
+        name: d.product.name,
+        category: d.product.category,
+        brandTone: d.product.brandTone,
+        price: d.product.price,
+        targetCustomer: d.product.targetCustomer,
+        description: d.product.description,
+        productColors: d.productColors,
+        preset: d.designDirection.colorPreset,
+        sections: d.sections.map((x) => ({ id: x.id, type: x.type })),
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionSig]);
+
   const recomputePlan = useCallback(() => {
     mutate((d) => {
       const fresh = recommendSlots(d);
@@ -253,6 +308,7 @@ export default function EditorRoute() {
             const prev = docRef.current;
             if (prev?.reviews) next.reviews = prev.reviews;
             if (prev?.designTokens) next.designTokens = prev.designTokens;
+            if (prev?.productColors) next.productColors = prev.productColors;
             commit(next);
             setSelectedId(next.sections[0]?.id ?? null);
           } else if (evt.type === "error") setGenErr(friendlyError(evt.error as string));
@@ -423,7 +479,14 @@ export default function EditorRoute() {
           >
             {preview ? (
               <div style={{ width }}>
-                <DetailPageRenderer page={doc} />
+                <DetailPageRenderer
+                  page={{
+                    sections: doc.sections,
+                    designTokens: doc.designTokens,
+                    palette: doc.designDirection?.palette,
+                    sectionStyles: doc.designDirection?.sectionStyles,
+                  }}
+                />
               </div>
             ) : (
               <EditorCanvas
@@ -431,6 +494,8 @@ export default function EditorRoute() {
                 selectedId={selectedId}
                 width={width}
                 designTokens={doc.designTokens}
+                palette={doc.designDirection?.palette}
+                sectionStyles={doc.designDirection?.sectionStyles}
                 onSelect={setSelectedId}
                 onAction={onSectionAction}
                 onReorder={reorder}
@@ -447,7 +512,14 @@ export default function EditorRoute() {
 
       {/* 다운로드용 숨김 렌더 (고정 폭) */}
       <div ref={exportRef} aria-hidden className="pointer-events-none fixed left-[-99999px] top-0" style={{ width: EXPORT_W }}>
-        <DetailPageRenderer page={doc} />
+        <DetailPageRenderer
+          page={{
+            sections: doc.sections,
+            designTokens: doc.designTokens,
+            palette: doc.designDirection?.palette,
+            sectionStyles: doc.designDirection?.sectionStyles,
+          }}
+        />
       </div>
 
       <ExportDialog

@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import type { CopyStat, DetailImage } from "@/types/detail-page";
 
 /* ============================================================================
@@ -21,6 +21,8 @@ export type MediaLayout =
 
 export interface SectionLayoutOverride {
   tone?: "light" | "gray" | "dark" | "accent";
+  /** tone 이 자동 배정된 값인지 (true 면 컬러 디렉팅 결과가 우선) */
+  toneAuto?: boolean;
   align?: "left" | "center";
   /** 위아래 여백 배율 (1 = 기본) */
   padding?: number;
@@ -33,6 +35,36 @@ export interface SectionLayoutOverride {
 /** 편집기가 섹션별 배경/정렬/여백을 주입하는 통로 */
 export const SectionLayoutContext = createContext<SectionLayoutOverride | null>(null);
 export const useSectionLayout = () => useContext(SectionLayoutContext);
+
+/**
+ * 컬러 디렉팅 엔진이 배정한 섹션 색.
+ * 있으면 TONE_CLASS 대신 이 색을 쓴다 (상품마다 다른 실제 판매용 색).
+ */
+export interface SectionColors {
+  backgroundColor: string;
+  textColor: string;
+  mutedColor: string;
+  accentColor: string;
+  highlightColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  borderColor: string;
+}
+export const SectionColorContext = createContext<SectionColors | null>(null);
+export const useSectionColors = () => useContext(SectionColorContext);
+
+/** 섹션 색이 주입됐을 때 해당 섹션 안에서 쓸 CSS 변수 */
+export function sectionColorVars(c: SectionColors | null): Record<string, string> {
+  if (!c) return {};
+  return {
+    "--dp-accent": c.accentColor,
+    "--dp-highlight": c.highlightColor,
+    "--dp-cta": c.buttonColor,
+    "--dp-cta-text": c.buttonTextColor,
+    "--dp-border": c.borderColor,
+    "--dp-muted": c.mutedColor,
+  };
+}
 
 /** 섹션의 표시 순번(01, 02 …). 편집기/렌더러가 주입, 없으면 숨김 */
 export const SectionStepContext = createContext<number | null>(null);
@@ -57,12 +89,20 @@ export function SectionShell({
   bleed?: boolean;
 }) {
   const o = useSectionLayout();
-  const toneClass = TONE_CLASS[o?.tone ?? tone];
+  const colors = useSectionColors();
   const pad = o?.padding ?? 1;
   const alignClass =
     o?.align === "center" ? "text-center [&_ul]:inline-block [&_ol]:inline-block [&_dl]:text-left" : "";
+
+  // 사용자가 톤을 직접 고르면 그게 우선, 아니면 컬러 디렉팅 결과, 그것도 없으면 기본 톤
+  const useDirected = Boolean(colors) && (!o?.tone || o?.toneAuto === true);
+  const toneClass = useDirected ? "" : TONE_CLASS[o?.tone ?? tone];
+  const style = useDirected
+    ? ({ background: colors!.backgroundColor, color: colors!.textColor, ...sectionColorVars(colors) } as CSSProperties)
+    : undefined;
+
   return (
-    <section className={`w-full ${toneClass}`}>
+    <section className={`w-full ${toneClass}`} style={style}>
       <div
         className={`mx-auto w-full max-w-detail ${bleed ? "" : "px-10"} ${alignClass} ${className}`}
         style={{ paddingTop: `${5 * pad}rem`, paddingBottom: `${5 * pad}rem` }}
@@ -121,10 +161,14 @@ export function Headline({ children, className = "" }: { children: ReactNode; cl
 }
 
 export function Sub({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const c = useSectionColors();
   return (
     <p
-      className={`mt-4 max-w-[620px] text-[17px] text-ink-soft ${className}`}
-      style={{ lineHeight: "var(--dp-body-leading, 1.75)" as unknown as number }}
+      className={`mt-4 max-w-[620px] text-[17px] ${c ? "" : "text-ink-soft"} ${className}`}
+      style={{
+        lineHeight: "var(--dp-body-leading, 1.75)" as unknown as number,
+        ...(c ? { color: c.mutedColor } : {}),
+      }}
     >
       {children}
     </p>

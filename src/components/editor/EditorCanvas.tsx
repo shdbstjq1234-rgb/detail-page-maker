@@ -6,6 +6,8 @@ import { RenderedSection, stepMap } from "@/components/detail-page/DetailPageRen
 import { SECTION_LABEL } from "@/lib/editor-doc";
 import type { EditorSection } from "@/lib/editor-doc";
 import { tokenVars, type DesignTokens } from "@/lib/design-tokens";
+import { paletteVars, type ColorPalette } from "@/lib/color-direction";
+import type { SectionColors } from "@/components/detail-page/_shared";
 
 export type SectionAction = "edit" | "ai-image" | "duplicate" | "delete";
 
@@ -14,6 +16,8 @@ export function EditorCanvas({
   selectedId,
   width,
   designTokens,
+  palette,
+  sectionStyles,
   onSelect,
   onAction,
   onReorder,
@@ -22,6 +26,8 @@ export function EditorCanvas({
   selectedId: string | null;
   width: number;
   designTokens?: DesignTokens;
+  palette?: ColorPalette;
+  sectionStyles?: Record<string, SectionColors>;
   onSelect: (id: string) => void;
   onAction: (id: string, action: SectionAction) => void;
   onReorder: (from: number, to: number) => void;
@@ -32,7 +38,7 @@ export function EditorCanvas({
   return (
     <article
       className="w-full select-none bg-white font-sans text-ink"
-      style={{ width, ...(tokenVars(designTokens) as CSSProperties) }}
+      style={{ width, ...(tokenVars(designTokens) as CSSProperties), ...(paletteVars(palette) as CSSProperties), ...(palette ? { background: palette.background, color: palette.textPrimary } : {}) }}
     >
       {(() => {
         const steps = stepMap(sections);
@@ -103,7 +109,7 @@ export function EditorCanvas({
             </div>
 
             <div className="pointer-events-none">
-              <RenderedSection data={s} step={steps[s.id]} />
+              <RenderedSection data={s} step={steps[s.id]} colors={sectionStyles?.[s.id] ?? null} />
             </div>
           </div>
         );

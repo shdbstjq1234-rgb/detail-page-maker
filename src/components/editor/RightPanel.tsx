@@ -305,7 +305,7 @@ export function RightPanel({
           <Field label="배경 톤">
             <Select
               value={section.layout?.tone ?? ""}
-              onChange={(e) => patchLayout({ tone: (e.target.value || undefined) as never })}
+              onChange={(e) => patchLayout({ tone: (e.target.value || undefined) as never, toneAuto: false })}
             >
               <option value="">기본</option>
               <option value="light">밝게 (흰색)</option>

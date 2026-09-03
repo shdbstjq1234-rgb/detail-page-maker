@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { DetailPage, DetailSectionData, SectionType } from "@/types/detail-page";
 import { tokenVars, type DesignTokens } from "@/lib/design-tokens";
-import { SectionLayoutContext, SectionStepContext, type SectionLayoutOverride } from "./_shared";
+import { SectionColorContext, SectionLayoutContext, SectionStepContext, type SectionColors, type SectionLayoutOverride } from "./_shared";
+import { paletteVars, type ColorPalette } from "@/lib/color-direction";
 import { HeroSection } from "./HeroSection";
 import { USPSection } from "./USPSection";
 import { ProblemSection } from "./ProblemSection";
@@ -49,14 +50,24 @@ export function stepMap(sections: { id: string; type: SectionType }[]): Record<s
 export type RendererSection = DetailSectionData & { layout?: SectionLayoutOverride };
 
 /** 섹션 하나를 레이아웃 오버라이드 + 순번과 함께 렌더 (편집 크롬 없음) */
-export function RenderedSection({ data, step }: { data: RendererSection; step?: number | null }) {
+export function RenderedSection({
+  data,
+  step,
+  colors,
+}: {
+  data: RendererSection;
+  step?: number | null;
+  colors?: SectionColors | null;
+}) {
   const Comp = SECTION_MAP[data.type] ?? SolutionSection;
   return (
-    <SectionLayoutContext.Provider value={data.layout ?? null}>
-      <SectionStepContext.Provider value={step ?? null}>
-        <Comp data={data} />
-      </SectionStepContext.Provider>
-    </SectionLayoutContext.Provider>
+    <SectionColorContext.Provider value={colors ?? null}>
+      <SectionLayoutContext.Provider value={data.layout ?? null}>
+        <SectionStepContext.Provider value={step ?? null}>
+          <Comp data={data} />
+        </SectionStepContext.Provider>
+      </SectionLayoutContext.Provider>
+    </SectionColorContext.Provider>
   );
 }
 
@@ -67,16 +78,27 @@ export function RenderedSection({ data, step }: { data: RendererSection; step?: 
 export function DetailPageRenderer({
   page,
 }: {
-  page: { sections: RendererSection[]; designTokens?: DesignTokens };
+  page: {
+    sections: RendererSection[];
+    designTokens?: DesignTokens;
+    /** 컬러 디렉팅 결과 (있으면 섹션별 색을 이걸로 칠한다) */
+    palette?: ColorPalette;
+    sectionStyles?: Record<string, SectionColors>;
+  };
 }) {
   const steps = stepMap(page.sections);
+  const rootStyle = {
+    ...(tokenVars(page.designTokens) as CSSProperties),
+    ...(paletteVars(page.palette) as CSSProperties),
+    ...(page.palette ? { background: page.palette.background, color: page.palette.textPrimary } : {}),
+  } as CSSProperties;
   return (
     <article
-      className="w-full bg-white font-sans text-ink antialiased"
-      style={tokenVars(page.designTokens) as CSSProperties}
+      className={`w-full font-sans antialiased ${page.palette ? "" : "bg-white text-ink"}`}
+      style={rootStyle}
     >
       {page.sections.map((s) => (
-        <RenderedSection key={s.id} data={s} step={steps[s.id]} />
+        <RenderedSection key={s.id} data={s} step={steps[s.id]} colors={page.sectionStyles?.[s.id] ?? null} />
       ))}
     </article>
   );

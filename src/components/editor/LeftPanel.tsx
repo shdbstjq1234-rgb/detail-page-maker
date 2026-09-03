@@ -16,6 +16,8 @@ import type { PipelineEvent, ProductImageRef, SectionType } from "@/types/detail
 import { SECTION_LABEL, SECTION_TYPES, makeSection, type EditorDoc } from "@/lib/editor-doc";
 import { uploadImage } from "@/lib/upload";
 import { ReviewPanel } from "./ReviewPanel";
+import { ShotListPanel } from "./ShotListPanel";
+import { ColorDirectionPanel } from "./ColorDirectionPanel";
 import { Btn, DropZone, Field, ListEditor, Select, TextArea, TextInput } from "./ui";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
@@ -256,6 +258,12 @@ export function LeftPanel({
             </div>
           )}
         </section>
+
+        {/* ── AI 이미지 제작 리스트 (상품 사진 바로 아래) ── */}
+        <ShotListPanel doc={doc} mutate={mutate} projectId={projectId} />
+
+        {/* ── 컬러 디렉팅 ── */}
+        <ColorDirectionPanel doc={doc} mutate={mutate} />
 
         {/* ── 섹션 목록 ── */}
         <section className="space-y-2">

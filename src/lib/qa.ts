@@ -12,6 +12,7 @@
 import type { EditorDoc } from "./editor-doc";
 import { SECTION_LABEL } from "./editor-doc";
 import { voiceIssues } from "./copy-voice";
+import { auditPalette, contrastRatio } from "./color-direction";
 import type { SectionType } from "@/types/detail-page";
 
 export type QaLevel = "error" | "warn" | "info";
@@ -195,6 +196,31 @@ export function runQa(doc: EditorDoc): QaFinding[] {
     const body = (sec.copy.body ?? "").trim();
     if (body.length > 160 && !/[.。!?\n]/.test(body.slice(20, body.length - 5))) {
       add({ level: "info", sectionId: sec.id, sectionLabel: label, title: "문단이 길어요", detail: "2~3개의 짧은 문장으로 나누면 모바일에서 읽기 쉬워집니다." });
+    }
+  }
+
+  // 8.5) 컬러 시스템 검수
+  const dir = doc.designDirection;
+  if (!dir) {
+    add({ level: "info", title: "컬러 디렉팅이 아직 없어요", detail: "왼쪽 ‘컬러 디렉팅’에서 상품 사진으로 색을 분석하면 섹션 배경·버튼 색이 자동으로 잡힙니다." });
+  } else {
+    for (const i of auditPalette(dir.palette)) {
+      add({ level: "warn", title: "컬러 시스템 점검", detail: i });
+    }
+    // 어두운 섹션이 과하면 페이지가 무거워진다
+    const styles = Object.values(dir.sectionStyles);
+    const darkN = styles.filter((s) => s.visualIntensity >= 85).length;
+    if (styles.length >= 6 && darkN > Math.ceil(styles.length / 3)) {
+      add({ level: "info", title: "어두운 섹션이 많아요", detail: `${darkN}개 섹션이 어두운 배경입니다. 강약이 사라져 답답해 보일 수 있어요.` });
+    }
+    // 강조 섹션만 이어지면 리듬이 없다
+    const loud = styles.filter((s) => s.visualIntensity >= 60).length;
+    if (styles.length >= 6 && loud > styles.length * 0.7) {
+      add({ level: "info", title: "강조 섹션 비중이 높아요", detail: "조용한 섹션을 섞어야 강조가 살아납니다." });
+    }
+    // 이미지 위 텍스트 대비
+    if (contrastRatio(dir.palette.textPrimary, dir.palette.background) < 7) {
+      add({ level: "warn", title: "본문 가독성이 약합니다", detail: "본문 글자와 배경 대비가 7:1 미만입니다." });
     }
   }
 

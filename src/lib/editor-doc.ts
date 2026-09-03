@@ -15,6 +15,8 @@ import type {
 } from "@/types/detail-page";
 import type { SectionLayoutOverride } from "@/components/detail-page/_shared";
 import type { DesignTokens } from "./design-tokens";
+import type { DesignDirection } from "./design-direction";
+import type { ProductColors } from "./color-direction";
 import { IMAGE_PRESETS, presetByKey, type AspectRatio } from "./image-presets";
 
 /** 섹션별 배경/정렬/여백/크기 오버라이드 (렌더러 컨텍스트와 동일 타입) */
@@ -71,8 +73,12 @@ export interface EditorDoc {
   analysis?: DetailPage["analysis"];
   usp?: DetailPage["usp"];
   plan?: DetailPage["plan"];
-  /** 상품별 색상 디자인 토큰 */
+  /** 상품별 색상 디자인 토큰 (타이포·레거시) */
   designTokens?: DesignTokens;
+  /** AI 디자인 디렉터 결과 — 컬러 시스템 + 비주얼 디렉션 + 섹션별 색 */
+  designDirection?: DesignDirection;
+  /** 업로드 이미지에서 추출한 실제 상품 색 */
+  productColors?: ProductColors;
   /** AI 이미지 스튜디오 이미지 계획 */
   imagePlan?: ImageSlot[];
   /** 리뷰 (실제 + demo) */
@@ -257,6 +263,7 @@ export function fromDetailPage(page: DetailPage, prevProduct?: ProductInput): Ed
       // 바로 앞 섹션과 다른 톤을 골라 시각 리듬을 만든다 (같은 배경 두 번 연속 금지)
       const next = prevTone === "gray" ? "light" : "gray";
       layout.tone = next;
+      layout.toneAuto = true; // 컬러 디렉팅이 있으면 그쪽이 우선
       prevTone = next;
     } else {
       prevTone = existing.tone === "accent" ? "dark" : existing.tone;
