@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: #f7f7f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 편집기 사이드바 스크롤바 — 얇고 조용하게 */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: #e2e2df;
+  border-radius: 8px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 섹션 드래그 중 표시 */
+.section-drag-over {
+  box-shadow: inset 0 3px 0 0 #2563eb;
+}
