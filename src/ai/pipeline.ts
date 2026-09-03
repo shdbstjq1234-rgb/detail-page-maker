@@ -1,5 +1,5 @@
 import { getLlmClient } from "./llm/client";
-import { getImageProvider } from "@/image-providers";
+import { getImageProvider, type ImageProvider } from "@/image-providers";
 import { analyzeProduct } from "./productAnalyzer";
 import { extractUSP } from "./uspExtractor";
 import { planPage } from "./pagePlanner";
@@ -27,6 +27,8 @@ export interface RunPipelineOptions {
   candidatesPerPrompt?: number;
   /** 이미지 단계를 건너뛴다 (카피/설계만 빠르게 보고 싶을 때) */
   skipImages?: boolean;
+  /** 이미지 provider 강제 지정 (기본: 환경변수 기반 자동 선택). 초기 생성은 mock 로 가볍게. */
+  imageProviderOverride?: ImageProvider;
 }
 
 /**
@@ -43,7 +45,7 @@ export async function runPipeline(
     onEvent?.({ ...e, at: new Date().toISOString() });
 
   const llm = await getLlmClient();
-  const imageProvider = await getImageProvider();
+  const imageProvider = options.imageProviderOverride ?? (await getImageProvider());
 
   // 0. (선택) 레퍼런스 분석
   let referenceInsights: ReferenceInsight[] = [];

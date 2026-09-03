@@ -1,9 +1,21 @@
 import { NextRequest } from "next/server";
 import { runPipeline } from "@/ai/pipeline";
+import { MockImageProvider } from "@/image-providers/mock";
 import type { PipelineEvent, ProductInput } from "@/types/detail-page";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+/**
+ * 초기 상세페이지 생성은 mock(플레이스홀더) 이미지로 가볍고 빠르게 만든다.
+ *  - 실제 이미지는 편집기의 "누끼컷으로 전체 이미지 제작"(Nano Banana)에서 생성해 Storage 에 저장한다.
+ *  - data URL 이미지를 doc 에 넣으면 저장 용량(4.5MB 제한) 초과로 저장이 실패한다.
+ *  - 초기 생성에도 실제 이미지 생성기를 쓰려면 GENERATE_USE_REAL_IMAGES=1
+ */
+function pipelineImageOpts() {
+  if (process.env.GENERATE_USE_REAL_IMAGES === "1") return {};
+  return { imageProviderOverride: new MockImageProvider() };
+}
 
 function normalizeInput(body: unknown): ProductInput | null {
   if (!body || typeof body !== "object") return null;
@@ -50,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   const events: PipelineEvent[] = [];
   try {
-    const page = await runPipeline(input, { onEvent: (e) => events.push(e) });
+    const page = await runPipeline(input, { onEvent: (e) => events.push(e), ...pipelineImageOpts() });
     return json({ ok: true, page, events });
   } catch (err) {
     return json({ ok: false, error: msg(err), events }, 500);
@@ -66,6 +78,7 @@ function streamResponse(input: ProductInput) {
       try {
         const page = await runPipeline(input, {
           onEvent: (e) => send({ type: "event", event: e }),
+          ...pipelineImageOpts(),
         });
         send({ type: "done", page });
       } catch (err) {

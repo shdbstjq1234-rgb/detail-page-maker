@@ -75,12 +75,23 @@ export async function saveProjectDoc(id: string, doc: EditorDoc): Promise<Projec
     lsWrite(list);
     return updated;
   }
+  const payload = JSON.stringify({ name, coverImage, doc });
+  // Vercel 서버리스 본문 한도(4.5MB) 대비 — data URL 이미지가 섞이면 초과할 수 있음
+  if (payload.length > 3_800_000) {
+    throw new Error(
+      "저장할 데이터가 너무 큽니다. 이미지가 원본(data URL)으로 들어간 것 같아요. " +
+        "이미지 스튜디오에서 다시 생성하면 저장용 URL로 바뀝니다.",
+    );
+  }
   const res = await fetch(`/api/projects/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, coverImage, doc }),
+    body: payload,
   });
-  if (!res.ok) throw new Error("자동 저장에 실패했습니다.");
+  if (!res.ok) {
+    const detail = res.status === 413 ? " (용량 초과)" : ` (${res.status})`;
+    throw new Error(`자동 저장에 실패했습니다${detail}.`);
+  }
   return (await res.json()).project as Project;
 }
 
