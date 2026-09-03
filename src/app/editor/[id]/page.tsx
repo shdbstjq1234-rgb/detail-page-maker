@@ -45,6 +45,7 @@ export default function EditorRoute() {
   const [scrollToAi, setScrollToAi] = useState(0);
   const [showStudio, setShowStudio] = useState(false);
   const [studioFocus, setStudioFocus] = useState<string | null>(null);
+  const [studioAuto, setStudioAuto] = useState(false);
 
   const [running, setRunning] = useState(false);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
@@ -362,6 +363,12 @@ export default function EditorRoute() {
         onExport={() => setShowExport(true)}
         onStudio={() => {
           setStudioFocus(null);
+          setStudioAuto(false);
+          setShowStudio(true);
+        }}
+        onAutoImages={() => {
+          setStudioFocus(null);
+          setStudioAuto(true);
           setShowStudio(true);
         }}
         minimal={showSetup}
@@ -447,12 +454,16 @@ export default function EditorRoute() {
       {showStudio && (
         <ImageStudio
           open={showStudio}
-          onClose={() => setShowStudio(false)}
+          onClose={() => {
+            setShowStudio(false);
+            setStudioAuto(false);
+          }}
           doc={doc}
           mutate={mutate}
           projectId={id}
           focusSectionId={studioFocus}
           onRecompute={recomputePlan}
+          autoRun={studioAuto}
         />
       )}
     </main>

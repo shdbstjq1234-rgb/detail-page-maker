@@ -13,6 +13,7 @@ import {
   Loader2,
   CloudOff,
   Sparkles,
+  Wand2,
 } from "lucide-react";
 import { ProviderBadge } from "./ProviderBadge";
 
@@ -32,6 +33,7 @@ export function TopBar({
   onPreview,
   onExport,
   onStudio,
+  onAutoImages,
   minimal = false,
 }: {
   name: string;
@@ -47,6 +49,7 @@ export function TopBar({
   onPreview: () => void;
   onExport: () => void;
   onStudio: () => void;
+  onAutoImages: () => void;
   minimal?: boolean;
 }) {
   const router = useRouter();
@@ -105,12 +108,22 @@ export function TopBar({
 
         <ProviderBadge compact />
 
-        <button
-          onClick={onStudio}
-          className="flex items-center gap-1 rounded-lg border border-violet-300 bg-violet-50 px-2.5 py-1.5 text-[12px] font-semibold text-violet-700 hover:bg-violet-100"
-        >
-          <Sparkles size={13} /> 전체 이미지 제작
-        </button>
+        <div className="flex overflow-hidden rounded-lg border border-violet-300">
+          <button
+            onClick={onAutoImages}
+            title="누끼컷으로 전체 이미지 자동 생성 후 섹션에 배치"
+            className="flex items-center gap-1 bg-violet-50 px-2.5 py-1.5 text-[12px] font-semibold text-violet-700 hover:bg-violet-100"
+          >
+            <Sparkles size={13} /> 누끼컷으로 전체 이미지 제작
+          </button>
+          <button
+            onClick={onStudio}
+            title="이미지 스튜디오 열기"
+            className="border-l border-violet-300 bg-violet-50 px-2 py-1.5 text-violet-700 hover:bg-violet-100"
+          >
+            <Wand2 size={13} />
+          </button>
+        </div>
 
         <button
           onClick={onPreview}

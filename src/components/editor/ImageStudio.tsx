@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Sparkles,
@@ -21,6 +21,20 @@ import { Btn, DropZone, Select, TextArea } from "./ui";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
 
+/** 동시 실행 개수를 제한한 map */
+async function pMap<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (cursor < items.length) {
+      const i = cursor++;
+      out[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 export function ImageStudio({
   open,
   onClose,
@@ -29,6 +43,7 @@ export function ImageStudio({
   projectId,
   focusSectionId,
   onRecompute,
+  autoRun = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -37,6 +52,8 @@ export function ImageStudio({
   projectId: string;
   focusSectionId: string | null;
   onRecompute: () => void;
+  /** 열리자마자 "누끼컷으로 전체 자동 생성" 을 1회 실행 */
+  autoRun?: boolean;
 }) {
   const plan = useMemo(() => doc.imagePlan ?? [], [doc.imagePlan]);
   const [selId, setSelId] = useState<string | null>(null);
@@ -47,7 +64,9 @@ export function ImageStudio({
     current: null,
   });
   const [confirmBatch, setConfirmBatch] = useState(false);
+  const [batchMsg, setBatchMsg] = useState<string | null>(null);
   const [tab, setTab] = useState<"grid" | "chat">("grid");
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -170,6 +189,155 @@ export function ImageStudio({
     }
     setBatch({ running: false, done: 0, total: 0, current: null });
   }
+
+  // ── 상태를 건드리지 않는 순수 호출 (병렬 배치용) ─────────────────
+  async function planPromptPure(slot: ImageSlot): Promise<Partial<ImageSlot>> {
+    try {
+      const preset = presetByKey(slot.presetKey);
+      const section = doc.sections.find((s) => s.id === slot.sectionId);
+      const res = await fetch("/api/plan-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          preset: { key: slot.presetKey, label: slot.label, scene: preset?.scene, purpose: slot.purpose, role: slot.role, group: preset?.group },
+          product: { name: doc.product.name, category: doc.product.category, targetCustomer: doc.product.targetCustomer },
+          section: section ? { type: section.type, headline: section.copy.headline } : undefined,
+          usp: doc.usp?.primary?.headline ?? "",
+          tokens: doc.designTokens,
+          currentPrompt: slot.prompt,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) return {};
+      return {
+        prompt: data.prompt || slot.prompt,
+        negativePrompt: data.negativePrompt || slot.negativePrompt,
+        planDetail: data.planDetail || slot.planDetail,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  async function generatePure(slot: ImageSlot, count: number): Promise<string[]> {
+    try {
+      const res = await fetch("/api/regenerate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: slot.prompt,
+          negativePrompt: slot.negativePrompt,
+          aspectRatio: slot.ratio,
+          count,
+          referenceImageUrl: slot.referenceUrl,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) return [];
+      return (data.images as { url: string }[]).map((i) => i.url).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 누끼컷 기준 전체 이미지 자동 생성 → 섹션 순서대로 자동 배치.
+   * 섹션에 배치될(=sectionId 있는) 미확정 슬롯을 대상으로,
+   * 프롬프트 기획 → 병렬 생성(동시 3개) → Storage 저장 → 한 번의 mutate 로 배치.
+   */
+  async function runFullAuto() {
+    if (batch.running) return;
+    setConfirmBatch(false);
+    setBatchMsg(null);
+    const cutout = (doc.product.images ?? [])[0]?.url;
+    const targets = (doc.imagePlan ?? []).filter((s) => s.sectionId && !s.chosen);
+    if (!targets.length) {
+      setBatchMsg("배치할 이미지 슬롯이 없어요. 먼저 상세페이지를 생성하거나 ‘이미지 다시 분석’을 눌러주세요.");
+      return;
+    }
+    setBatch({ running: true, done: 0, total: targets.length, current: "준비 중" });
+
+    const results = await pMap(targets, 3, async (slot) => {
+      let s: ImageSlot = { ...slot, referenceUrl: slot.referenceUrl || cutout };
+      setBatch((b) => ({ ...b, current: s.label }));
+      if (!s.planDetail) {
+        const planned = await planPromptPure(s);
+        s = { ...s, ...planned };
+      }
+      const urls = await generatePure(s, 2);
+      let hosted: string | undefined;
+      if (urls[0]) {
+        try {
+          hosted = await uploadImage(urls[0], { projectId, kind: "generated", filename: s.presetKey });
+        } catch {
+          hosted = urls[0];
+        }
+      }
+      setBatch((b) => ({ ...b, done: b.done + 1 }));
+      return {
+        slotId: slot.id,
+        sectionId: slot.sectionId,
+        role: slot.role,
+        label: slot.label,
+        hosted,
+        candidates: urls,
+        prompt: s.prompt,
+        negativePrompt: s.negativePrompt,
+        planDetail: s.planDetail,
+      };
+    });
+
+    // 경합 방지: 결과를 한 번의 mutate 로 반영
+    mutate((d) => {
+      for (const r of results) {
+        const slot = (d.imagePlan ?? []).find((x) => x.id === r.slotId);
+        if (slot) {
+          slot.enabled = true;
+          slot.prompt = r.prompt;
+          slot.negativePrompt = r.negativePrompt;
+          slot.planDetail = r.planDetail;
+          slot.candidates = r.candidates;
+          if (r.hosted) {
+            slot.chosen = r.hosted;
+            slot.status = "done";
+            slot.error = undefined;
+            if (!slot.versions.some((v) => v.url === r.hosted))
+              slot.versions.push({ url: r.hosted, prompt: r.prompt, at: new Date().toISOString() });
+          } else {
+            slot.status = "error";
+            slot.error = "이미지 생성 실패";
+          }
+        }
+        if (r.hosted && r.sectionId) {
+          const sec = d.sections.find((x) => x.id === r.sectionId);
+          if (sec) {
+            const idx = sec.images.findIndex((i) => i.role === r.role);
+            const img = makeImage(r.hosted, r.role, r.label);
+            if (idx >= 0) sec.images[idx] = img;
+            else sec.images.push(img);
+          }
+        }
+      }
+    });
+
+    const okN = results.filter((r) => r.hosted).length;
+    setBatch({ running: false, done: 0, total: 0, current: null });
+    setBatchMsg(
+      okN === results.length
+        ? `${okN}개 이미지를 만들어 섹션에 순서대로 배치했어요.`
+        : `${okN}/${results.length}개 배치 완료. 실패한 슬롯은 개별로 다시 생성할 수 있어요.`,
+    );
+  }
+
+  // autoRun: 열리자마자 1회 자동 실행
+  useEffect(() => {
+    if (open && autoRun && !autoStarted.current && (doc.imagePlan ?? []).some((s) => s.sectionId && !s.chosen)) {
+      autoStarted.current = true;
+      void runFullAuto();
+    }
+    if (!open) autoStarted.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoRun]);
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-[#F7F7F5]">
@@ -449,18 +617,37 @@ export function ImageStudio({
             </Btn>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-[12px] text-neutral-500">
-              선택됨 <b className="text-neutral-900">{enabledPending.length}</b>개 (미생성)
-            </span>
-            <Btn
-              variant="primary"
-              className="ml-auto"
-              disabled={enabledPending.length === 0}
-              onClick={() => setConfirmBatch(true)}
-            >
-              <Sparkles size={13} /> 선택 이미지 한번에 제작
-            </Btn>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0">
+                <div className="text-[12px] font-semibold text-neutral-800">누끼컷으로 전체 이미지 자동 제작</div>
+                <div className="truncate text-[11px] text-neutral-400">
+                  {batchMsg ??
+                    `섹션에 배치될 ${plan.filter((s) => s.sectionId && !s.chosen).length}개를 한 번에 만들어 순서대로 넣습니다`}
+                </div>
+              </div>
+              <Btn
+                variant="primary"
+                className="ml-auto shrink-0"
+                disabled={plan.filter((s) => s.sectionId && !s.chosen).length === 0}
+                onClick={runFullAuto}
+              >
+                <Sparkles size={13} /> 전체 자동 제작
+              </Btn>
+            </div>
+            <div className="flex items-center gap-2 border-t border-neutral-100 pt-2">
+              <span className="text-[11px] text-neutral-400">
+                또는 왼쪽에서 켠 항목만 · 선택됨 <b className="text-neutral-700">{enabledPending.length}</b>개
+              </span>
+              <Btn
+                variant="default"
+                className="ml-auto"
+                disabled={enabledPending.length === 0}
+                onClick={() => setConfirmBatch(true)}
+              >
+                선택 항목만 제작
+              </Btn>
+            </div>
           </div>
         )}
       </footer>
