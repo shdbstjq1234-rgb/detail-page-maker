@@ -12,7 +12,7 @@ const config: Config = {
         detail: "375px",
       },
       maxWidth: {
-        detail: "860px", // 상세페이지 콘텐츠 최대 폭 (PC 기준)
+        detail: "780px", // 상세페이지 콘텐츠 폭 (고정 780 / 세로 무한)
       },
       fontFamily: {
         sans: [

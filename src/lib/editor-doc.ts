@@ -216,13 +216,40 @@ export function emptyDoc(): EditorDoc {
   };
 }
 
-/** 파이프라인 결과 DetailPage → EditorDoc. prevProduct 를 주면 편집기 입력 필드를 유지한다. */
+/** 섹션 타입별 기본 이미지 배치 (시각 리듬용 · 사용자가 오버라이드 가능) */
+const DEFAULT_MEDIA: Partial<Record<SectionType, SectionLayout["media"]>> = {
+  problem: "full",
+  solution: "split",
+  featureDetail: "grid2",
+  lifestyle: "carousel",
+  detail: "grid3",
+  howToUse: "full",
+};
+
+/**
+ * 파이프라인 결과 DetailPage → EditorDoc. prevProduct 를 주면 편집기 입력 필드를 유지한다.
+ * TEXT/PHOTO 가 단조롭게 반복되지 않도록 섹션별 기본 배치·톤을 얹는다. (기존 layout 은 유지)
+ */
 export function fromDetailPage(page: DetailPage, prevProduct?: ProductInput): EditorDoc {
+  let toneToggle = 0;
+  const sections: EditorSection[] = page.sections.map((s) => {
+    const sec: EditorSection = { ...s };
+    const media = DEFAULT_MEDIA[s.type];
+    const existing = sec.layout ?? {};
+    const layout: SectionLayout = { ...existing };
+    if (media && existing.media == null) layout.media = media;
+    // hero/cta/problem 은 자체 톤이 강하므로 건드리지 않고, 나머지를 흰/회색으로 번갈아
+    if (existing.tone == null && !["hero", "cta", "problem", "comparison", "review"].includes(s.type)) {
+      layout.tone = toneToggle++ % 2 === 1 ? "gray" : "light";
+    }
+    if (Object.keys(layout).length) sec.layout = layout;
+    return sec;
+  });
   return {
     product: prevProduct
       ? { ...prevProduct, images: prevProduct.images ?? page.product.images }
       : page.product,
-    sections: page.sections.map((s) => ({ ...s })),
+    sections,
     meta: page.meta,
     analysis: page.analysis,
     usp: page.usp,
@@ -283,6 +310,9 @@ export function defaultSlotPrompt(presetKey: string, product: ProductInput, toke
   return `${name}, ${scene}, Korean e-commerce detail page image, photorealistic commercial photography, high detail${mood}. ${PRODUCT_LOCK}.`;
 }
 
+/** 이미지 생성 기본 비율 — 1:1 (1000×1000). 상세페이지에 들어갈 때 섹션 비율로 자동 크롭됨. */
+export const DEFAULT_IMAGE_RATIO: AspectRatio = "1:1";
+
 export function makeSlot(
   presetKey: string,
   product: ProductInput,
@@ -298,7 +328,7 @@ export function makeSlot(
     sectionId,
     purpose: preset?.purpose ?? "상세페이지 이미지",
     enabled: Boolean(preset?.defaultOn),
-    ratio: preset?.ratio ?? "4:5",
+    ratio: DEFAULT_IMAGE_RATIO,
     prompt: defaultSlotPrompt(presetKey, product, tokens),
     negativePrompt: NEGATIVE_DEFAULT,
     referenceUrl: (product.images ?? [])[0]?.url,
@@ -354,6 +384,29 @@ export function recommendSlots(doc: EditorDoc): ImageSlot[] {
   }
 
   return slots;
+}
+
+/** 생성/배치된 이미지 URL 을 중복 없이 모은다 (ZIP 다운로드용). */
+export function collectGeneratedImages(doc: EditorDoc): { name: string; url: string }[] {
+  const seen = new Set<string>();
+  const out: { name: string; url: string }[] = [];
+  const push = (url: string | undefined, label: string) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    const safe = label.replace(/[^\w가-힣ㄱ-ㅎㅏ-ㅣ-]+/g, "_").slice(0, 40) || "image";
+    out.push({ name: `${String(out.length + 1).padStart(2, "0")}_${safe}`, url });
+  };
+  // 섹션에 실제로 배치된 이미지 (순서대로)
+  doc.sections.forEach((sec, i) => {
+    sec.images.forEach((img) => push(img.url, `${String(i + 1).padStart(2, "0")}-${SECTION_LABEL[sec.type]}-${img.role}`));
+  });
+  // 스튜디오에서 만든 이미지 (선택/버전 포함)
+  (doc.imagePlan ?? []).forEach((slot) => {
+    push(slot.chosen, `slot-${slot.label}`);
+    slot.versions.forEach((v, vi) => push(v.url, `slot-${slot.label}-v${vi + 1}`));
+    slot.candidates.forEach((c, ci) => push(c, `slot-${slot.label}-cand${ci + 1}`));
+  });
+  return out;
 }
 
 // ---------------------------------------------------------------------------

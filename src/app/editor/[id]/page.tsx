@@ -12,6 +12,7 @@ import { ExportDialog } from "@/components/editor/ExportDialog";
 import { SetupScreen } from "@/components/editor/SetupScreen";
 import { ImageStudio } from "@/components/editor/ImageStudio";
 import {
+  collectGeneratedImages,
   fromDetailPage,
   makeSection,
   makeSlot,
@@ -26,7 +27,9 @@ import { deriveTokens } from "@/lib/design-tokens";
 import { getProject, saveProjectDoc } from "@/lib/store";
 import type { DetailPage, PipelineEvent, SectionType } from "@/types/detail-page";
 
-const DEVICE_W = { desktop: 820, mobile: 414 } as const;
+// 상세페이지 가로 = 780 고정 (세로 무한). 모바일 미리보기만 폭을 줄여 확인.
+const DEVICE_W = { desktop: 780, mobile: 414 } as const;
+const EXPORT_W = 780;
 
 export default function EditorRoute() {
   const routeParams = useParams<{ id: string }>();
@@ -435,7 +438,7 @@ export default function EditorRoute() {
       )}
 
       {/* 다운로드용 숨김 렌더 (고정 폭) */}
-      <div ref={exportRef} aria-hidden className="pointer-events-none fixed left-[-99999px] top-0" style={{ width: 800 }}>
+      <div ref={exportRef} aria-hidden className="pointer-events-none fixed left-[-99999px] top-0" style={{ width: EXPORT_W }}>
         <DetailPageRenderer page={doc} />
       </div>
 
@@ -444,6 +447,7 @@ export default function EditorRoute() {
         onClose={() => setShowExport(false)}
         getNode={() => exportRef.current?.firstElementChild as HTMLElement | null}
         baseName={doc.product.name ?? "detail-page"}
+        images={collectGeneratedImages(doc)}
         demoReviewCount={
           doc.sections.some((s) => s.type === "review")
             ? (doc.reviews ?? []).filter((r) => r.source === "demo").length

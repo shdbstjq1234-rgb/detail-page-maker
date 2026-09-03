@@ -1,9 +1,10 @@
 import type { DetailSectionData } from "@/types/detail-page";
-import { SectionShell, Eyebrow, Headline, Figure, pickImage } from "./_shared";
+import { SectionShell, Eyebrow, Headline, SectionMedia, useSectionLayout } from "./_shared";
 
 export function ProblemSection({ data }: { data: DetailSectionData }) {
   const { copy, images } = data;
-  const img = pickImage(images, "usageScene", "beforeAfter", "lifestyle");
+  const o = useSectionLayout();
+  const media = o?.media ?? "full";
 
   return (
     <SectionShell tone="dark">
@@ -27,11 +28,7 @@ export function ProblemSection({ data }: { data: DetailSectionData }) {
         </ul>
       )}
 
-      {img && (
-        <div className="mt-8 overflow-hidden rounded-2xl">
-          <Figure image={img} ratio="4/5" rounded={false} />
-        </div>
-      )}
+      <SectionMedia images={images} layout={media === "auto" ? "full" : media} ratio="4/5" />
     </SectionShell>
   );
 }

@@ -1,9 +1,11 @@
 import type { DetailSectionData } from "@/types/detail-page";
-import { SectionShell, Eyebrow, Headline, Sub, Bullets, Figure } from "./_shared";
+import { SectionShell, Eyebrow, Headline, Sub, Bullets, SectionMedia, useSectionLayout } from "./_shared";
 
 export function DetailSection({ data }: { data: DetailSectionData }) {
   const { copy, images } = data;
-  const imgs = images.length ? images : [];
+  const o = useSectionLayout();
+  // 디테일 컷은 여러 장을 보여주는 게 기본
+  const media = o?.media ?? (images.length >= 3 ? "grid3" : images.length === 2 ? "grid2" : "full");
 
   return (
     <SectionShell tone="light">
@@ -11,19 +13,7 @@ export function DetailSection({ data }: { data: DetailSectionData }) {
       <Headline>{copy.headline}</Headline>
       {copy.subheadline && <Sub>{copy.subheadline}</Sub>}
 
-      {imgs.length <= 1 ? (
-        <div className="mt-8 overflow-hidden rounded-2xl">
-          <Figure image={imgs[0]} ratio="4/5" rounded={false} />
-        </div>
-      ) : (
-        <div className="mt-8 grid grid-cols-2 gap-2.5">
-          {imgs.slice(0, 4).map((im, i) => (
-            <div key={i} className="overflow-hidden rounded-2xl">
-              <Figure image={im} ratio="1/1" rounded={false} />
-            </div>
-          ))}
-        </div>
-      )}
+      <SectionMedia images={images} layout={media} ratio="4/5" />
 
       {copy.bullets && <Bullets items={copy.bullets} variant="plain" />}
     </SectionShell>

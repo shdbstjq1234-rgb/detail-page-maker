@@ -36,7 +36,7 @@ export function ImageChat({
   projectId: string;
 }) {
   const [text, setText] = useState("");
-  const [ratio, setRatio] = useState<Ratio>("4:5");
+  const [ratio, setRatio] = useState<Ratio>("1:1");
   const [perShot, setPerShot] = useState(2);
   const [refUrl, setRefUrl] = useState<string>((doc.product.images ?? [])[0]?.url ?? "");
   const [jobs, setJobs] = useState<Job[]>([]);

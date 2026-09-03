@@ -24,10 +24,10 @@ export interface ImageProvider {
   generate(req: ImageGenRequest): Promise<ImageGenResult[]>;
 }
 
-/** "4:5" → {width,height} (긴 변 1024 기준) */
+/** "4:5" → {width,height} (긴 변 1000 기준 · 기본 1:1 이면 1000×1000) */
 export function ratioToSize(ratio: ImageGenRequest["aspectRatio"]): { width: number; height: number } {
   const [w, h] = ratio.split(":").map(Number);
-  const long = 1024;
+  const long = 1000;
   return w >= h
     ? { width: long, height: Math.round((long * h) / w) }
     : { width: Math.round((long * w) / h), height: long };

@@ -62,6 +62,49 @@ export async function downloadZip(filename: string, files: { name: string; dataU
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+/**
+ * 원격/데이터 URL 이미지들을 받아 ZIP 하나로 묶어 다운로드.
+ * 상세페이지에 쓴 생성 이미지 원본을 한 번에 저장할 때 사용.
+ */
+export async function downloadUrlsZip(
+  filename: string,
+  items: { name: string; url: string }[],
+): Promise<{ ok: number; failed: number }> {
+  const zip = new JSZip();
+  let ok = 0;
+  let failed = 0;
+  await Promise.all(
+    items.map(async (it) => {
+      try {
+        let blob: Blob;
+        if (it.url.startsWith("data:")) {
+          const [head, b64] = it.url.split(",");
+          const mime = /data:([^;]+)/.exec(head)?.[1] ?? "image/png";
+          const bin = atob(b64);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          blob = new Blob([arr], { type: mime });
+        } else {
+          const res = await fetch(it.url, { mode: "cors" });
+          if (!res.ok) throw new Error(String(res.status));
+          blob = await res.blob();
+        }
+        const ext = (blob.type.split("/")[1] || "png").replace("jpeg", "jpg").split("+")[0];
+        zip.file(`${it.name}.${ext}`, blob);
+        ok++;
+      } catch {
+        failed++;
+      }
+    }),
+  );
+  if (ok === 0) throw new Error("저장할 이미지를 가져오지 못했습니다.");
+  const blob = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(blob);
+  downloadDataUrl(filename, url);
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return { ok, failed };
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

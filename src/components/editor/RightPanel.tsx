@@ -228,7 +228,22 @@ export function RightPanel({
 
         {/* ── 스타일 ── */}
         <section className="space-y-3">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">배경 · 정렬 · 여백 · 크기</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">이미지 배치 · 배경 · 정렬 · 여백 · 크기</h3>
+          <Field label="이미지 배치">
+            <Select
+              value={section.layout?.media ?? "auto"}
+              onChange={(e) => patchLayout({ media: (e.target.value || undefined) as never })}
+            >
+              <option value="auto">자동 (이미지 수에 맞춤)</option>
+              <option value="full">전체 폭 1장</option>
+              <option value="split">이미지 + 설명 2분할</option>
+              <option value="grid2">2분할 그리드</option>
+              <option value="grid3">3분할 그리드</option>
+              <option value="oneLargeTwoSmall">큰 1장 + 작은 2장</option>
+              <option value="beforeAfter">Before / After</option>
+              <option value="carousel">가로 스크롤</option>
+            </Select>
+          </Field>
           <Field label="배경 톤">
             <Select
               value={section.layout?.tone ?? ""}

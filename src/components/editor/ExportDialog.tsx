@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, FileImage, Scissors, Archive, AlertTriangle } from "lucide-react";
-import { downloadDataUrl, downloadZip, renderNode, splitByHeight } from "@/lib/export-image";
+import { X, Loader2, FileImage, Scissors, Archive, AlertTriangle, Images } from "lucide-react";
+import { downloadDataUrl, downloadUrlsZip, downloadZip, renderNode, splitByHeight } from "@/lib/export-image";
 
-type Mode = "png" | "jpg" | "split" | "zip";
+type Mode = "png" | "jpg" | "split" | "zip" | "assets";
 
 export function ExportDialog({
   open,
@@ -12,12 +12,15 @@ export function ExportDialog({
   getNode,
   baseName,
   demoReviewCount = 0,
+  images = [],
 }: {
   open: boolean;
   onClose: () => void;
   getNode: () => HTMLElement | null;
   baseName: string;
   demoReviewCount?: number;
+  /** 상세페이지에 쓰인 생성 이미지 원본 (ZIP 다운로드용) */
+  images?: { name: string; url: string }[];
 }) {
   const [busy, setBusy] = useState<Mode | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -26,14 +29,32 @@ export function ExportDialog({
   const safe = (baseName || "detail-page").replace(/[^\w가-힣ㄱ-ㅎㅏ-ㅣ.-]/g, "_").slice(0, 40);
 
   async function run(mode: Mode) {
+    setErr(null);
+    setDone(null);
+
+    if (mode === "assets") {
+      if (!images.length) {
+        setErr("아직 생성된 이미지가 없습니다.");
+        return;
+      }
+      setBusy(mode);
+      try {
+        const r = await downloadUrlsZip(`${safe}_images.zip`, images);
+        setDone(`이미지 ${r.ok}개 ZIP 저장 완료${r.failed ? ` (${r.failed}개 실패)` : ""}`);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "다운로드에 실패했습니다.");
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
+
     const node = getNode();
     if (!node) {
       setErr("미리보기를 찾을 수 없습니다.");
       return;
     }
     setBusy(mode);
-    setErr(null);
-    setDone(null);
     try {
       // 폰트/이미지 로드 대기 (최대 3초, 백그라운드 탭에서 무한 대기 방지)
       if (document.fonts?.ready) {
@@ -130,6 +151,13 @@ export function ExportDialog({
             desc="분할한 이미지를 압축 파일 하나로"
             loading={busy === "zip"}
             onClick={() => run("zip")}
+          />
+          <Row
+            icon={<Images size={16} />}
+            title={`생성 이미지 모음 (ZIP)${images.length ? ` · ${images.length}장` : ""}`}
+            desc="AI로 만든 이미지 원본을 낱장으로 한 번에"
+            loading={busy === "assets"}
+            onClick={() => run("assets")}
           />
         </div>
 

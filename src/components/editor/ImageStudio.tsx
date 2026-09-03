@@ -11,11 +11,13 @@ import {
   Check,
   History,
   AlertTriangle,
+  Download,
 } from "lucide-react";
 import type { EditorDoc, ImageSlot } from "@/lib/editor-doc";
-import { makeImage, SECTION_LABEL } from "@/lib/editor-doc";
+import { collectGeneratedImages, makeImage, SECTION_LABEL } from "@/lib/editor-doc";
 import { PRESET_GROUPS, presetByKey } from "@/lib/image-presets";
 import { uploadImage } from "@/lib/upload";
+import { downloadUrlsZip } from "@/lib/export-image";
 import { ImageChat } from "./ImageChat";
 import { Btn, DropZone, Select, TextArea } from "./ui";
 
@@ -65,8 +67,28 @@ export function ImageStudio({
   });
   const [confirmBatch, setConfirmBatch] = useState(false);
   const [batchMsg, setBatchMsg] = useState<string | null>(null);
+  const [zipBusy, setZipBusy] = useState(false);
   const [tab, setTab] = useState<"grid" | "chat">("grid");
   const autoStarted = useRef(false);
+
+  async function downloadZip() {
+    const imgs = collectGeneratedImages(doc);
+    if (!imgs.length) {
+      setBatchMsg("아직 저장된 생성 이미지가 없어요.");
+      return;
+    }
+    setZipBusy(true);
+    setBatchMsg(null);
+    try {
+      const safe = (doc.product.name || "detail-page").replace(/[^\w가-힣ㄱ-ㅎㅏ-ㅣ.-]/g, "_").slice(0, 40);
+      const r = await downloadUrlsZip(`${safe}_images.zip`, imgs);
+      setBatchMsg(`이미지 ${r.ok}개를 ZIP 으로 저장했어요${r.failed ? ` (${r.failed}개 실패)` : ""}.`);
+    } catch (e) {
+      setBatchMsg(e instanceof Error ? e.message : "ZIP 저장 실패");
+    } finally {
+      setZipBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -646,6 +668,10 @@ export function ImageStudio({
                 onClick={() => setConfirmBatch(true)}
               >
                 선택 항목만 제작
+              </Btn>
+              <Btn variant="default" onClick={downloadZip} disabled={zipBusy}>
+                {zipBusy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                생성 이미지 ZIP
               </Btn>
             </div>
           </div>

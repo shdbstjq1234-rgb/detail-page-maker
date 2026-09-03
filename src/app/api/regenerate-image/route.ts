@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const ratio = (["1:1", "4:5", "3:4", "16:9", "9:16"] as const).includes(body.aspectRatio as never)
     ? (body.aspectRatio as "1:1" | "4:5" | "3:4" | "16:9" | "9:16")
-    : "4:5";
+    : "1:1"; // 기본 1:1 (1000×1000)
   const count = Math.min(6, Math.max(1, Number(body.count) || 3));
   const referenceImageUrl =
     typeof body.referenceImageUrl === "string" && body.referenceImageUrl ? body.referenceImageUrl : undefined;

@@ -1,9 +1,10 @@
 import type { DetailSectionData } from "@/types/detail-page";
-import { SectionShell, Eyebrow, Headline, Sub, Figure, pickImage } from "./_shared";
+import { SectionShell, Eyebrow, Headline, Sub, SectionMedia, useSectionLayout } from "./_shared";
 
 export function HowToUseSection({ data }: { data: DetailSectionData }) {
   const { copy, images } = data;
-  const img = pickImage(images, "usageScene", "lifestyle");
+  const o = useSectionLayout();
+  const media = o?.media ?? "full";
   const steps = copy.steps ?? [];
 
   return (
@@ -12,11 +13,7 @@ export function HowToUseSection({ data }: { data: DetailSectionData }) {
       <Headline>{copy.headline}</Headline>
       {copy.subheadline && <Sub>{copy.subheadline}</Sub>}
 
-      {img && (
-        <div className="mt-8 overflow-hidden rounded-2xl">
-          <Figure image={img} ratio="16/9" rounded={false} />
-        </div>
-      )}
+      <SectionMedia images={images} layout={media === "auto" ? "full" : media} ratio="16/9" />
 
       <ol className="mt-8 space-y-2.5">
         {steps.map((s) => (

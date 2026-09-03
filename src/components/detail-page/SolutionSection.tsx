@@ -1,9 +1,18 @@
 import type { DetailSectionData } from "@/types/detail-page";
-import { SectionShell, Eyebrow, Headline, Sub, Bullets, Figure, pickImage } from "./_shared";
+import { SectionShell, Eyebrow, Headline, Sub, Bullets, SectionMedia, useSectionLayout } from "./_shared";
 
 export function SolutionSection({ data }: { data: DetailSectionData }) {
   const { copy, images } = data;
-  const img = pickImage(images, "featureExplainer", "detailCloseup", "structure", "lifestyle");
+  const o = useSectionLayout();
+  const media = o?.media ?? "full";
+
+  const aside =
+    media === "split" ? (
+      <>
+        {copy.bullets && <Bullets items={copy.bullets} variant="check" />}
+        {copy.body && <p className="mt-4 text-[14px] leading-[1.8] text-ink-soft">{copy.body}</p>}
+      </>
+    ) : undefined;
 
   return (
     <SectionShell tone="light">
@@ -11,14 +20,14 @@ export function SolutionSection({ data }: { data: DetailSectionData }) {
       <Headline>{copy.headline}</Headline>
       {copy.subheadline && <Sub>{copy.subheadline}</Sub>}
 
-      {img && (
-        <div className="mt-8 overflow-hidden rounded-2xl">
-          <Figure image={img} ratio="4/5" rounded={false} />
-        </div>
-      )}
+      <SectionMedia images={images} layout={media} ratio="4/5" aside={aside} />
 
-      {copy.bullets && <Bullets items={copy.bullets} variant="check" />}
-      {copy.body && <p className="mt-6 text-[14px] leading-[1.8] text-ink-soft">{copy.body}</p>}
+      {media !== "split" && (
+        <>
+          {copy.bullets && <Bullets items={copy.bullets} variant="check" />}
+          {copy.body && <p className="mt-6 text-[14px] leading-[1.8] text-ink-soft">{copy.body}</p>}
+        </>
+      )}
     </SectionShell>
   );
 }

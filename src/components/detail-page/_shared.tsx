@@ -8,6 +8,17 @@ import type { CopyStat, DetailImage } from "@/types/detail-page";
  *  - 강조색은 상품별 디자인 토큰(var(--dp-*)) 사용
  * ========================================================================== */
 
+/** 섹션 이미지 배치 프리셋 */
+export type MediaLayout =
+  | "auto" // 이미지 수에 맞춰 자동
+  | "full" // 전체 폭 1장
+  | "split" // 이미지 + 설명 2분할
+  | "grid2" // 2분할 그리드
+  | "grid3" // 3분할 그리드
+  | "oneLargeTwoSmall" // 큰 1장 + 작은 2장
+  | "beforeAfter" // Before / After 2장
+  | "carousel"; // 가로 스크롤
+
 export interface SectionLayoutOverride {
   tone?: "light" | "gray" | "dark" | "accent";
   align?: "left" | "center";
@@ -15,6 +26,8 @@ export interface SectionLayoutOverride {
   padding?: number;
   /** 헤드라인 크기 배율 (1 = 기본) */
   headlineScale?: number;
+  /** 이미지 배치 프리셋 */
+  media?: MediaLayout;
 }
 
 /** 편집기가 섹션별 배경/정렬/여백을 주입하는 통로 */
@@ -215,6 +228,127 @@ export function Figure({
       ) : (
         <div className="flex h-full w-full items-center justify-center text-[13px] text-ink-mute">이미지 준비 중</div>
       )}
+    </div>
+  );
+}
+
+/**
+ * 섹션 이미지 배치 엔진.
+ * layout 프리셋에 따라 1장 / 2·3분할 / 큰1+작은2 / Before·After / 가로스크롤 / 이미지+설명 분할을 렌더한다.
+ * layout 이 없거나 "auto" 면 이미지 수로 결정한다.
+ */
+export function SectionMedia({
+  images,
+  layout = "auto",
+  ratio = "4/5",
+  aside,
+  captions,
+  className = "",
+}: {
+  images: DetailImage[];
+  layout?: MediaLayout;
+  ratio?: string;
+  /** split 모드에서 이미지 옆에 붙는 설명 블록 */
+  aside?: ReactNode;
+  /** beforeAfter 모드 라벨 (기본 BEFORE / AFTER) */
+  captions?: [string, string];
+  className?: string;
+}) {
+  const imgs = (images ?? []).filter(Boolean);
+  let mode: MediaLayout = layout;
+  if (mode === "auto") {
+    mode = imgs.length >= 4 ? "carousel" : imgs.length === 3 ? "grid3" : imgs.length === 2 ? "grid2" : "full";
+  }
+  if (imgs.length === 0 && mode !== "full" && mode !== "split") mode = "full";
+
+  if (mode === "split") {
+    return (
+      <div className={`mt-8 grid gap-5 sm:grid-cols-2 sm:items-center ${className}`}>
+        <div className="overflow-hidden rounded-2xl">
+          <Figure image={imgs[0]} ratio="1/1" rounded={false} />
+        </div>
+        <div className="text-[14px] leading-[1.8] text-ink-soft">{aside}</div>
+      </div>
+    );
+  }
+  if (mode === "grid2") {
+    return (
+      <div className={`mt-8 grid grid-cols-2 gap-3 ${className}`}>
+        {(imgs.length ? imgs.slice(0, 2) : [undefined, undefined]).map((im, i) => (
+          <div key={i} className="overflow-hidden rounded-2xl">
+            <Figure image={im} ratio="3/4" rounded={false} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (mode === "grid3") {
+    return (
+      <div className={`mt-8 grid grid-cols-3 gap-2.5 ${className}`}>
+        {(imgs.length ? imgs.slice(0, 3) : [undefined, undefined, undefined]).map((im, i) => (
+          <div key={i} className="overflow-hidden rounded-xl">
+            <Figure image={im} ratio="3/4" rounded={false} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (mode === "oneLargeTwoSmall") {
+    return (
+      <div className={`mt-8 grid gap-3 sm:grid-cols-[1.4fr_1fr] ${className}`}>
+        <div className="overflow-hidden rounded-2xl">
+          <Figure image={imgs[0]} ratio="4/5" rounded={false} />
+        </div>
+        <div className="grid grid-rows-2 gap-3">
+          {[imgs[1], imgs[2]].map((im, i) => (
+            <div key={i} className="overflow-hidden rounded-2xl">
+              <Figure image={im} ratio="4/3" rounded={false} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (mode === "beforeAfter") {
+    const [a, b] = captions ?? ["BEFORE", "AFTER"];
+    return (
+      <div className={`mt-8 grid grid-cols-2 gap-3 ${className}`}>
+        {[
+          { im: imgs[0], label: a },
+          { im: imgs[1], label: b },
+        ].map((c, i) => (
+          <div key={i} className="overflow-hidden rounded-2xl">
+            <div className="relative">
+              <Figure image={c.im} ratio="3/4" rounded={false} />
+              <span
+                className="absolute left-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider text-white"
+                style={{ background: i === 0 ? "rgba(0,0,0,.55)" : "var(--dp-primary,#111)" }}
+              >
+                {c.label}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (mode === "carousel" && imgs.length > 1) {
+    return (
+      <div
+        className={`mt-8 flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}
+      >
+        {imgs.map((im, i) => (
+          <div key={i} className="w-[78%] shrink-0 snap-start overflow-hidden rounded-2xl sm:w-[46%]">
+            <Figure image={im} ratio="3/4" rounded={false} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // full
+  return (
+    <div className={`mt-8 overflow-hidden rounded-2xl ${className}`}>
+      <Figure image={imgs[0]} ratio={ratio} rounded={false} />
     </div>
   );
 }
