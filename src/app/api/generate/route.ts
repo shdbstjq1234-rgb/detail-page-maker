@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { runPipeline } from "@/ai/pipeline";
-import { MockImageProvider } from "@/image-providers/mock";
 import type { PipelineEvent, ProductInput } from "@/types/detail-page";
 
 export const runtime = "nodejs";
@@ -12,10 +11,7 @@ export const maxDuration = 300;
  *  - data URL 이미지를 doc 에 넣으면 저장 용량(4.5MB 제한) 초과로 저장이 실패한다.
  *  - 초기 생성에도 실제 이미지 생성기를 쓰려면 GENERATE_USE_REAL_IMAGES=1
  */
-function pipelineImageOpts() {
-  if (process.env.GENERATE_USE_REAL_IMAGES === "1") return {};
-  return { imageProviderOverride: new MockImageProvider() };
-}
+const USE_MOCK_IMAGES = process.env.GENERATE_USE_REAL_IMAGES !== "1";
 
 function normalizeInput(body: unknown): ProductInput | null {
   if (!body || typeof body !== "object") return null;
@@ -62,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   const events: PipelineEvent[] = [];
   try {
-    const page = await runPipeline(input, { onEvent: (e) => events.push(e), ...pipelineImageOpts() });
+    const page = await runPipeline(input, { onEvent: (e) => events.push(e), useMockImages: USE_MOCK_IMAGES });
     return json({ ok: true, page, events });
   } catch (err) {
     return json({ ok: false, error: msg(err), events }, 500);
@@ -78,7 +74,7 @@ function streamResponse(input: ProductInput) {
       try {
         const page = await runPipeline(input, {
           onEvent: (e) => send({ type: "event", event: e }),
-          ...pipelineImageOpts(),
+          useMockImages: USE_MOCK_IMAGES,
         });
         send({ type: "done", page });
       } catch (err) {

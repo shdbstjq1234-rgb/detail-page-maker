@@ -43,3 +43,4 @@ export function activeProviderName(): "mock" | "nanobanana" | "higgsfield" {
 }
 
 export * from "./types";
+export { MockImageProvider } from "./mock";

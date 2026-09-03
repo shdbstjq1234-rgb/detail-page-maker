@@ -1,5 +1,5 @@
 import { getLlmClient } from "./llm/client";
-import { getImageProvider, type ImageProvider } from "@/image-providers";
+import { getImageProvider, MockImageProvider, type ImageProvider } from "@/image-providers";
 import { analyzeProduct } from "./productAnalyzer";
 import { extractUSP } from "./uspExtractor";
 import { planPage } from "./pagePlanner";
@@ -29,6 +29,8 @@ export interface RunPipelineOptions {
   skipImages?: boolean;
   /** 이미지 provider 강제 지정 (기본: 환경변수 기반 자동 선택). 초기 생성은 mock 로 가볍게. */
   imageProviderOverride?: ImageProvider;
+  /** true 면 실제 생성기 대신 mock(플레이스홀더) 이미지 사용. 초기 생성 시 문서 비대화·크레딧 낭비 방지. */
+  useMockImages?: boolean;
 }
 
 /**
@@ -45,7 +47,9 @@ export async function runPipeline(
     onEvent?.({ ...e, at: new Date().toISOString() });
 
   const llm = await getLlmClient();
-  const imageProvider = options.imageProviderOverride ?? (await getImageProvider());
+  const imageProvider =
+    options.imageProviderOverride ??
+    (options.useMockImages ? new MockImageProvider() : await getImageProvider());
 
   // 0. (선택) 레퍼런스 분석
   let referenceInsights: ReferenceInsight[] = [];

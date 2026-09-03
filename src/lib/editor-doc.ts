@@ -233,7 +233,9 @@ const DEFAULT_MEDIA: Partial<Record<SectionType, SectionLayout["media"]>> = {
 export function fromDetailPage(page: DetailPage, prevProduct?: ProductInput): EditorDoc {
   let toneToggle = 0;
   const sections: EditorSection[] = page.sections.map((s) => {
-    const sec: EditorSection = { ...s };
+    // data URL(base64) 이미지는 doc 을 비대하게 만들어 저장을 실패시킨다 → 제거하고
+    // 편집기의 "누끼컷으로 전체 이미지 제작"에서 Storage 저장본으로 채우게 한다.
+    const sec: EditorSection = { ...s, images: (s.images ?? []).filter((im) => !im.url?.startsWith("data:")) };
     const media = DEFAULT_MEDIA[s.type];
     const existing = sec.layout ?? {};
     const layout: SectionLayout = { ...existing };
