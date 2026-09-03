@@ -14,6 +14,7 @@ import {
   CloudOff,
   Sparkles,
   Wand2,
+  ShieldCheck,
 } from "lucide-react";
 import { ProviderBadge } from "./ProviderBadge";
 
@@ -34,6 +35,9 @@ export function TopBar({
   onExport,
   onStudio,
   onAutoImages,
+  onQa,
+  qaCount = 0,
+  qaHasError = false,
   minimal = false,
 }: {
   name: string;
@@ -50,6 +54,9 @@ export function TopBar({
   onExport: () => void;
   onStudio: () => void;
   onAutoImages: () => void;
+  onQa: () => void;
+  qaCount?: number;
+  qaHasError?: boolean;
   minimal?: boolean;
 }) {
   const router = useRouter();
@@ -124,6 +131,20 @@ export function TopBar({
             <Wand2 size={13} />
           </button>
         </div>
+
+        <button
+          onClick={onQa}
+          title="출력 전 검수"
+          className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold ${
+            qaHasError
+              ? "border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+              : qaCount > 0
+                ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+          }`}
+        >
+          <ShieldCheck size={13} /> 검수{qaCount > 0 ? ` ${qaCount}` : ""}
+        </button>
 
         <button
           onClick={onPreview}

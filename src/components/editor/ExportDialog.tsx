@@ -13,6 +13,8 @@ export function ExportDialog({
   baseName,
   demoReviewCount = 0,
   images = [],
+  qaIssueCount = 0,
+  onQa,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +23,9 @@ export function ExportDialog({
   demoReviewCount?: number;
   /** 상세페이지에 쓰인 생성 이미지 원본 (ZIP 다운로드용) */
   images?: { name: string; url: string }[];
+  /** 검수에서 발견된 error+warn 건수 */
+  qaIssueCount?: number;
+  onQa?: () => void;
 }) {
   const [busy, setBusy] = useState<Mode | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -112,6 +117,21 @@ export function ExportDialog({
         <p className="mb-3 text-[11px] text-neutral-400">
           편집 화면 · 버튼은 빠지고 상세페이지만 저장됩니다. 페이지가 길면 30초~1분 걸릴 수 있어요.
         </p>
+
+        {qaIssueCount > 0 && (
+          <button
+            onClick={() => {
+              onClose();
+              onQa?.();
+            }}
+            className="mb-3 flex w-full items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-[12px] text-amber-800 hover:bg-amber-100"
+          >
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>
+              검수에서 <b>{qaIssueCount}건</b>이 발견됐어요. 다운로드 전에 확인하려면 눌러주세요.
+            </span>
+          </button>
+        )}
 
         {demoReviewCount > 0 && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">

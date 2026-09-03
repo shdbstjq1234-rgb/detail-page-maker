@@ -11,6 +11,8 @@ import { EditorCanvas, type SectionAction } from "@/components/editor/EditorCanv
 import { ExportDialog } from "@/components/editor/ExportDialog";
 import { SetupScreen } from "@/components/editor/SetupScreen";
 import { ImageStudio } from "@/components/editor/ImageStudio";
+import { QaDialog } from "@/components/editor/QaDialog";
+import { runQa, qaSummary } from "@/lib/qa";
 import {
   collectGeneratedImages,
   fromDetailPage,
@@ -45,6 +47,7 @@ export default function EditorRoute() {
   const [device, setDevice] = useState<"desktop" | "mobile">("mobile");
   const [preview, setPreview] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showQa, setShowQa] = useState(false);
   const [scrollToAi, setScrollToAi] = useState(0);
   const [showStudio, setShowStudio] = useState(false);
   const [studioFocus, setStudioFocus] = useState<string | null>(null);
@@ -165,6 +168,8 @@ export default function EditorRoute() {
     () => doc?.sections.find((s) => s.id === selectedId) ?? null,
     [doc, selectedId],
   );
+
+  const qa = useMemo(() => (doc && (doc.analysis || doc.usp) ? qaSummary(runQa(doc)) : null), [doc]);
 
   // 최초 생성 직후 1회: 이미지 계획 + 디자인 토큰 초기화
   const planReady = Boolean(doc?.imagePlan?.length);
@@ -364,6 +369,9 @@ export default function EditorRoute() {
         preview={preview}
         onPreview={() => setPreview((v) => !v)}
         onExport={() => setShowExport(true)}
+        onQa={() => setShowQa(true)}
+        qaCount={qa ? qa.error + qa.warn : 0}
+        qaHasError={Boolean(qa && qa.error > 0)}
         onStudio={() => {
           setStudioFocus(null);
           setStudioAuto(false);
@@ -448,12 +456,16 @@ export default function EditorRoute() {
         getNode={() => exportRef.current?.firstElementChild as HTMLElement | null}
         baseName={doc.product.name ?? "detail-page"}
         images={collectGeneratedImages(doc)}
+        qaIssueCount={qa ? qa.error + qa.warn : 0}
+        onQa={() => setShowQa(true)}
         demoReviewCount={
           doc.sections.some((s) => s.type === "review")
             ? (doc.reviews ?? []).filter((r) => r.source === "demo").length
             : 0
         }
       />
+
+      <QaDialog open={showQa} onClose={() => setShowQa(false)} doc={doc} onGoSection={setSelectedId} />
 
       {showStudio && (
         <ImageStudio
