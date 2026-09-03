@@ -13,6 +13,7 @@ import {
 } from "@/lib/editor-doc";
 import { uploadImage } from "@/lib/upload";
 import { deriveTokens, typeTokens, type TypePreset } from "@/lib/design-tokens";
+import { deRobot, voiceIssues } from "@/lib/copy-voice";
 import { Btn, DropZone, Field, ListEditor, Select, TextArea, TextInput } from "./ui";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
@@ -61,6 +62,31 @@ export function RightPanel({
       const s = d.sections.find((x) => x.id === section.id);
       if (s) s.images = fn(s.images);
     });
+  // 이 섹션 카피를 사람 말투로 후처리
+  const humanizeSection = () =>
+    mutate((d) => {
+      const s = d.sections.find((x) => x.id === section.id);
+      if (!s) return;
+      const c = s.copy;
+      c.headline = deRobot(c.headline || "");
+      if (c.subheadline) c.subheadline = deRobot(c.subheadline);
+      if (c.body) c.body = deRobot(c.body);
+      if (c.bullets) c.bullets = c.bullets.map(deRobot);
+      if (c.stats) c.stats = c.stats.map((x) => ({ value: x.value, label: deRobot(x.label) }));
+      if (c.steps) c.steps = c.steps.map((x) => ({ ...x, title: deRobot(x.title), description: deRobot(x.description) }));
+      if (c.infoRows) c.infoRows = c.infoRows.map((x) => ({ label: x.label, value: deRobot(x.value) }));
+    });
+  const sectionText = [
+    c.headline,
+    c.subheadline,
+    c.body,
+    ...(c.bullets ?? []),
+    ...(c.steps ?? []).flatMap((s) => [s.title, s.description]),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const robotHits = voiceIssues(sectionText);
+
   // 타이포 프리셋은 페이지 전체(designTokens)에 적용
   const setTypePreset = (preset: TypePreset) =>
     mutate((d) => {
@@ -84,6 +110,18 @@ export function RightPanel({
             if (patch.layout) patchLayout(patch.layout as never);
           }}
         />
+
+        <button
+          onClick={humanizeSection}
+          className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-semibold ${
+            robotHits.length
+              ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+              : "border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+          }`}
+        >
+          ✍️ 사람 말투로 다듬기
+          {robotHits.length > 0 && <span className="rounded bg-amber-200/70 px-1 text-[10px]">{robotHits.length}</span>}
+        </button>
 
         {/* ── 텍스트 ── */}
         <section className="space-y-3">

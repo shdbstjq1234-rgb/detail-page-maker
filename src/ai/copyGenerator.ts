@@ -1,6 +1,7 @@
 import type { LlmClient } from "./llm/client";
 import { getLlmClient } from "./llm/client";
 import { extractJson } from "@/lib/json";
+import { COPY_SYSTEM, humanizeCopy } from "@/lib/copy-voice";
 import type {
   ProductInput,
   ProductAnalysis,
@@ -10,14 +11,22 @@ import type {
   SectionCopy,
 } from "@/types/detail-page";
 
-const SYSTEM = `너는 한국 이커머스 상세페이지 카피라이터다.
-규칙:
-- 헤드라인은 크고 짧고 즉각 이해되게. 12~20자.
-- 긴 문단 금지. 불릿은 한 줄로.
-- 한 섹션은 하나의 메시지만.
-- 숫자·기능·장점은 크게 강조(stats 활용).
-- 과장/허위 표현 금지. 근거 없는 최상급 표현 자제.
-- 자연스러운 한국어 구어체. 번역투 금지.`;
+const SYSTEM = COPY_SYSTEM;
+
+/** 구간별 추가 지시 */
+const SECTION_HINT: Partial<Record<string, string>> = {
+  hero: "제품 이름·스펙부터 말하지 마라. 이 제품을 찾게 되는 '상황'이나 '고민'을 한 문장으로 건드려라. subheadline 에서 살짝 풀어준다.",
+  usp: "가장 강한 이유 2~3개. 각 불릿은 '무엇을 해서 → 뭐가 편해지는지'. stats 는 진짜 근거(스펙/구성) 있을 때만.",
+  problem: "겁주지 말고 공감시켜라. '쓰다 보면 가장 먼저 불편해지는 부분' 같은 말투. 불릿 3개 정도.",
+  solution: "problem 바로 뒤. '그래서 이렇게 만들었습니다' 흐름. 해결 방식 + 그래서 달라지는 점.",
+  feature: "기능명만 나열 금지. 불릿마다 '기능 → 실제 쓰는 장면 → 얻는 변화'.",
+  featureDetail: "구매 확신이 필요한 기능 1개를 깊게. body 에 '왜 이 부분을 신경 썼는지'를 사람 말투로.",
+  lifestyle: "이 제품이 있는 하루의 장면. 특별한 날 말고 그냥 매일.",
+  comparison: "경쟁 제품 깎아내리지 마라. '비슷해 보여도 써보면 차이가 난다' 톤. rows 는 기준 4~6개.",
+  howToUse: "'설명서 안 봐도 된다' 톤. steps 3개, 각 description 은 한 문장.",
+  productInfo: "감성 빼고 사실만. infoRows 로. bullets 에는 색상·편차·교환/반품 유의사항.",
+  cta: "압박 금지. '필요했던 제품이라면 더 미루지 않아도 됩니다' 류. bullets 는 배송/교환/CS 한 줄씩.",
+};
 
 export async function generateSectionCopy(
   section: PlannedSection,
@@ -35,14 +44,19 @@ export async function generateSectionCopy(
   const user = `아래 섹션의 카피를 작성해 JSON 으로 답하라.
 
 [상품] ${input.name} / ${analysis.category} / ${input.price ? input.price.toLocaleString() + "원" : "가격미정"}
-[브랜드 톤] ${input.brandTone ?? "믿음직하고 깔끔한"}
-[최강 USP] ${usp.primary.headline}
-[핵심 기능] ${analysis.keyFeatures.join(", ")}
-[고객 문제] ${analysis.customerProblems.join(", ")}
+[브랜드 톤] ${input.brandTone ?? "믿음직하고 담백한"}
+[한 줄 요약] ${analysis.oneLiner}
+[최강 USP] ${usp.primary.headline} — ${usp.primary.rationale}
+[핵심 기능] ${analysis.keyFeatures.join(" / ")}
+[고객이 겪는 불편] ${analysis.customerProblems.join(" / ")}
+[사는 이유] ${analysis.purchaseReasons.join(" / ")}
+[망설이는 이유] ${analysis.purchaseBarriers.join(" / ")}
+[주요 타깃] ${analysis.targetCustomers.map((t) => t.label).join(", ")}
 
 [이 섹션]
 - type: ${section.type}
 - 전달할 단 하나의 메시지: ${section.message}
+- 이 섹션 지침: ${SECTION_HINT[section.type] ?? "이 메시지 하나만, 사람 말투로."}
 
 [출력 JSON — 해당 섹션 type 에 필요한 필드만 채운다]
 {
@@ -69,7 +83,7 @@ export async function generateSectionCopy(
 
   const raw = extractJson<Partial<SectionCopy>>(text);
 
-  return {
+  const assembled: SectionCopy = {
     sectionId: section.id,
     type: section.type,
     headline: (raw.headline ?? section.message).trim(),
@@ -92,6 +106,9 @@ export async function generateSectionCopy(
       : undefined,
     body: raw.body?.trim() || undefined,
   };
+
+  // 어떤 소스(Claude/목업)든 마지막에 사람 말투로 후처리
+  return humanizeCopy(assembled);
 }
 
 /** 모든 섹션 카피를 병렬로 생성 */

@@ -11,6 +11,7 @@
  */
 import type { EditorDoc } from "./editor-doc";
 import { SECTION_LABEL } from "./editor-doc";
+import { voiceIssues } from "./copy-voice";
 import type { SectionType } from "@/types/detail-page";
 
 export type QaLevel = "error" | "warn" | "info";
@@ -125,6 +126,21 @@ export function runQa(doc: EditorDoc): QaFinding[] {
         });
         break;
       }
+    }
+
+    // 2.5) 기계어 / 광고 상투어
+    const robot = voiceIssues(hay);
+    if (robot.length) {
+      add({
+        level: "warn",
+        sectionId: sec.id,
+        sectionLabel: label,
+        title: `기계어 같은 표현 — “${robot[0]}”`,
+        detail:
+          `‘${label}’ 섹션에 실제 판매자가 잘 안 쓰는 표현이 있어요` +
+          (robot.length > 1 ? ` (외 ${robot.length - 1}건)` : "") +
+          `. 오른쪽 패널 ‘사람 말투로 다듬기’로 고칠 수 있어요.`,
+      });
     }
 
     // 3) 영어 마케팅 문구 덩어리 (복붙 잔재)

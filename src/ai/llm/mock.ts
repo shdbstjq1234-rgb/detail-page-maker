@@ -61,12 +61,12 @@ function parseContext(raw: string): Ctx {
   const features = arr(obj.specs).concat(arr(obj.sellingPoints)).slice(0, 6);
   const desc = str(obj.description);
   const sp = arr(obj.sellingPoints);
-  // 헤드라인 훅: 셀링포인트 > 설명 첫 문장 > 첫 스펙
+  // 헤드라인 훅: 셀링포인트 > 설명 첫 문장 > 상황형 기본 훅 (제품 설명부터 하지 않는다)
+  const cat = category.replace(/\s+/g, "");
   const hook =
     (sp[0] && sp[0].trim()) ||
     (desc && desc.split(/[.\n·]/)[0].trim()) ||
-    (features[0] && String(features[0]).trim()) ||
-    `${name} 하나로 끝`;
+    `매일 쓰는 ${cat}, 이런 부분이 은근히 중요합니다`;
   return {
     name,
     category,
@@ -175,129 +175,125 @@ function copyFor(label: string, c: Ctx) {
   const base = { sectionId: id, type };
 
   const f = c.features;
-  const short = (s: string) => String(s).split(/[·,:\-—(]/)[0].trim().slice(0, 14);
+  const short = (s: string) => String(s).split(/[·,:\-—(]/)[0].trim().slice(0, 16);
+  // "무엇을 해서 → 뭐가 편해지는지" 형태의 불릿
+  const benefitLine = (feat: string) => {
+    const k = short(feat);
+    return `${k} — 쓰다 보면 이 부분에서 손이 덜 갑니다.`;
+  };
 
   switch (type) {
     case "hero":
       return {
         ...base,
-        headline: `${c.hook}`,
-        subheadline: `${c.name} · ${c.category}`,
+        headline: c.hook,
+        subheadline: `매일 쓰는 ${c.category}라면, 이 차이가 생각보다 큽니다.`,
         bullets: f.slice(0, 3).map(short),
-        cta: "지금 구매하기",
+        cta: "옵션 확인하기",
       };
     case "usp":
       return {
         ...base,
-        headline: "숫자로 보는 이유",
-        subheadline: `${c.name}을 고르는 이유는 단순합니다.`,
-        bullets: f.slice(0, 3).map((x) => `${x}`),
-        stats: [
-          { value: `${f.length}`, label: "핵심 포인트" },
-          { value: "1분", label: "관리 시간" },
-          { value: "AS", label: "구매 후 보장" },
-        ],
+        headline: "왜 이걸 고르는지, 짧게 말하면",
+        subheadline: `${c.name}을 다시 찾게 되는 이유는 몇 가지로 좁혀집니다.`,
+        bullets: f.slice(0, 3).map(benefitLine),
       };
     case "problem":
       return {
         ...base,
-        headline: `${c.category}, 이런 게 늘 아쉬웠죠`,
-        subheadline: "다들 그냥 참고 쓰던 것들.",
+        headline: `${c.category}, 쓰다 보면 꼭 이 부분이 걸립니다`,
+        subheadline: "큰 불편은 아닌데, 매일 반복되면 이야기가 달라집니다.",
         bullets: [
-          "비슷해 보여서 뭘 골라야 할지 몰랐다",
-          "싼 걸 샀다가 금방 다시 사야 했다",
-          "막상 쓰면 손이 자꾸 간다",
+          "비슷해 보여서 뭘 골라야 할지 애매했습니다.",
+          "저렴한 걸 샀다가 얼마 못 가 다시 산 적이 있습니다.",
+          "막상 쓰면 정리하고 꺼내는 데 손이 자꾸 갑니다.",
         ],
       };
     case "solution":
       return {
         ...base,
-        headline: `그래서 ${c.name}은 다르게 만들었습니다`,
-        subheadline: `${c.hook}`,
-        bullets: f.slice(0, 4).map((x) => `${x}`),
+        headline: `그래서 ${short(c.name)}은 이렇게 만들었습니다`,
+        subheadline: "괜히 기능만 늘리지 않고, 자주 쓰는 부분에 집중했습니다.",
+        bullets: f.slice(0, 4).map((x) => `${short(x)} — 실제 쓰는 상황을 기준으로 잡았습니다.`),
       };
     case "feature":
       return {
         ...base,
-        headline: "이 차이가 매일 느껴집니다",
-        subheadline: "한 번 쓰면 전으로 못 돌아가는 이유.",
-        bullets: f.map((x) => `${x}`),
+        headline: "한 번 써보면 왜 이렇게 만들었는지 느껴집니다",
+        subheadline: "기능 자체보다, 쓸 때 뭐가 달라지는지를 보시면 됩니다.",
+        bullets: f.map((x) => `${short(x)} — 필요할 때 바로, 쓰고 나면 간단하게.`),
       };
     case "featureDetail":
       return {
         ...base,
-        headline: short(f[0] ?? "핵심 설계") + ", 왜 중요한가",
-        subheadline: "가장 많이 물어보시는 그 부분.",
-        body: `${c.name}의 ${short(f[0] ?? "핵심 설계")}는 눈에 잘 안 띄지만 매일 쓸 때 체감이 가장 큰 부분입니다. 실사용 기준으로 잡았습니다.`,
-        stats: [
-          { value: short(f[1] ?? "정밀"), label: "설계 기준" },
-          { value: short(f[2] ?? "내구"), label: "품질 포인트" },
-        ],
-        bullets: f.slice(0, 3).map((x) => `${x}`),
+        headline: `${short(f[0] ?? "이 부분")}, 왜 신경 썼냐면`,
+        subheadline: "눈에 잘 띄지는 않아도, 매일 쓸 때 체감이 가장 큰 부분입니다.",
+        body: `${short(c.name)}에서 가장 많이 물어보시는 게 이 부분입니다. 처음엔 사소해 보여도, 반복해서 쓰다 보면 여기서 편함이 갈립니다. 그래서 실제 사용하는 자세와 상황을 기준으로 잡았습니다.`,
+        bullets: f.slice(0, 3).map(short),
       };
     case "lifestyle":
       return {
         ...base,
-        headline: "당신의 하루에 자연스럽게",
-        subheadline: "특별한 날이 아니라, 그냥 매일.",
-        bullets: ["아침에도", "저녁에도", "주말에도"].map((t) => `${t} 어울리는 톤`),
+        headline: "특별한 날이 아니라, 그냥 매일",
+        subheadline: "출근길에도, 집에서도, 주말에도 자연스럽게 손이 갑니다.",
+        bullets: ["아침에 나갈 때 챙기기 좋습니다.", "책상 위에 둬도 부담이 없습니다.", "주말 나들이에도 그대로 들고 나갑니다."],
       };
     case "comparison":
       return {
         ...base,
-        headline: `일반 ${c.category} vs ${c.name}`,
-        subheadline: "가격이 조금 더 나가는 이유는 여기 다 있습니다.",
+        headline: "비슷해 보여도, 써보면 여기서 갈립니다",
+        subheadline: "가격만 보면 작은 차이지만, 매일 쓰면 체감은 달라집니다.",
         comparison: {
-          columns: [c.name, "일반 제품"],
+          columns: [short(c.name), "일반 제품"],
           rows: [
-            { criterion: "마감 품질", values: [true, false] },
-            { criterion: "관리 편의성", values: [true, false] },
-            { criterion: "교체 주기", values: ["길다", "짧다"] },
-            { criterion: "사용 설명", values: ["상세", "부족"] },
-            { criterion: "구매 후 대응", values: [true, false] },
+            { criterion: "마감·소재", values: ["꼼꼼하게", "제각각"] },
+            { criterion: "쓸 때 손이 가는 정도", values: ["적게", "자주"] },
+            { criterion: "다시 사게 되는 주기", values: ["길게", "짧게"] },
+            { criterion: "구매 전 정보", values: ["자세히", "부족"] },
+            { criterion: "문제 생겼을 때", values: ["대응 가능", "애매함"] },
           ],
         },
-        bullets: ["당장의 가격보다 총비용을 보면 오히려 합리적입니다."],
+        bullets: ["무엇을 더 넣었는지보다, 무엇을 편하게 만들었는지를 봐주세요."],
       };
     case "howToUse":
       return {
         ...base,
-        headline: "쓰는 법은 3단계면 끝",
-        subheadline: "설명서 안 봐도 됩니다.",
+        headline: "설명서 안 봐도 됩니다",
+        subheadline: "받자마자 바로 쓸 수 있게, 과정을 최대한 줄였습니다.",
         steps: [
-          { order: 1, title: "꺼내기", description: "패키지에서 꺼내 가볍게 닦아주세요." },
-          { order: 2, title: "사용", description: "평소 쓰던 방식 그대로 사용합니다." },
-          { order: 3, title: "관리", description: "물기만 말려두면 다음에도 그대로." },
+          { order: 1, title: "꺼내서 한 번 닦기", description: "받으면 가볍게 닦아 물기만 말려주세요." },
+          { order: 2, title: "평소처럼 쓰기", description: "쓰던 방식 그대로 쓰시면 됩니다. 따로 익힐 게 없습니다." },
+          { order: 3, title: "쓰고 나면 정리", description: "물기만 말려 한쪽에 두면 다음에도 그대로입니다." },
         ],
       };
     case "productInfo":
       return {
         ...base,
-        headline: "제품 정보",
-        subheadline: "구매 전에 한 번만 확인해 주세요.",
+        headline: "구매 전에 이 부분만 확인해 주세요",
+        subheadline: "사진만으로 헷갈리는 부분까지 최대한 담았습니다.",
         infoRows: [
           { label: "제품명", value: c.name },
           { label: "카테고리", value: c.category },
-          { label: "구성", value: "본품 1 + 사용 가이드" },
-          { label: "가격", value: c.price ? `${c.price.toLocaleString()}원` : "옵션별 상이" },
-          ...f.slice(0, 3).map((x, i) => ({ label: ["소재/스펙", "특징", "옵션"][i] ?? "정보", value: String(x) })),
+          { label: "구성", value: "본품 + 사용 가이드" },
+          { label: "가격", value: c.price ? `${c.price.toLocaleString()}원` : "옵션별로 다릅니다" },
+          ...f.slice(0, 3).map((x, i) => ({ label: ["소재·스펙", "특징", "옵션"][i] ?? "정보", value: String(x) })),
         ],
         bullets: [
           "모니터 환경에 따라 실제 색상과 차이가 있을 수 있습니다.",
-          "제품 특성상 미세한 편차가 있을 수 있습니다.",
-          "교환/반품은 수령 후 7일 이내, 사용 흔적이 없는 경우 가능합니다.",
+          "제품 특성상 미세한 사이즈 편차가 있을 수 있습니다.",
+          "교환·반품은 수령 후 7일 이내, 사용 흔적이 없을 때 가능합니다.",
         ],
       };
     case "cta":
       return {
         ...base,
-        headline: "오늘 기준으로 고르세요",
-        subheadline: "고민하는 사이에도 하루는 지나갑니다.",
-        cta: "지금 구매하기",
-        bullets: ["빠른 배송", "안심 교환", "국내 CS"],
+        headline: "필요했던 제품이라면, 더 미루지 않아도 됩니다",
+        subheadline: "어차피 계속 쓰게 될 제품이라면, 오늘부터 조금 더 편하게 써보세요.",
+        cta: "옵션 선택하기",
+        bullets: ["평일 오후 3시 이전 주문 시 당일 출고", "단순 변심 교환 가능", "구매 후 문의는 국내 CS"],
       };
     default:
-      return { ...base, headline: c.name, body: f.join(", ") };
+      return { ...base, headline: short(c.name), body: f.map(short).join(", ") };
   }
 }
 
