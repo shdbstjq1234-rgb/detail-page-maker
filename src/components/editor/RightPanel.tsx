@@ -12,6 +12,7 @@ import {
   type EditorSection,
 } from "@/lib/editor-doc";
 import { uploadImage } from "@/lib/upload";
+import { deriveTokens, typeTokens, type TypePreset } from "@/lib/design-tokens";
 import { Btn, DropZone, Field, ListEditor, Select, TextArea, TextInput } from "./ui";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
@@ -59,6 +60,12 @@ export function RightPanel({
     mutate((d) => {
       const s = d.sections.find((x) => x.id === section.id);
       if (s) s.images = fn(s.images);
+    });
+  // 타이포 프리셋은 페이지 전체(designTokens)에 적용
+  const setTypePreset = (preset: TypePreset) =>
+    mutate((d) => {
+      const base = d.designTokens ?? deriveTokens(d.product);
+      d.designTokens = { ...base, type: typeTokens(preset) };
     });
 
   return (
@@ -228,7 +235,20 @@ export function RightPanel({
 
         {/* ── 스타일 ── */}
         <section className="space-y-3">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">이미지 배치 · 배경 · 정렬 · 여백 · 크기</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">타이포 · 이미지 배치 · 배경 · 정렬 · 여백</h3>
+          <Field label="타이포 스타일 (페이지 전체)">
+            <Select
+              value={doc.designTokens?.type?.preset ?? "modern"}
+              onChange={(e) => setTypePreset(e.target.value as TypePreset)}
+            >
+              <option value="modern">모던 (기본)</option>
+              <option value="sporty">스포티 (굵고 강하게)</option>
+              <option value="premium">프리미엄 (얇고 여유롭게)</option>
+              <option value="living">리빙 (친근·안정)</option>
+              <option value="cute">키즈·문구 (둥근 느낌)</option>
+              <option value="minimal">미니멀 (가늘게)</option>
+            </Select>
+          </Field>
           <Field label="이미지 배치">
             <Select
               value={section.layout?.media ?? "auto"}

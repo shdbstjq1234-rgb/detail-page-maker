@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       border: str(parsed.border) ?? base.border,
       dark: str(parsed.dark) ?? base.dark,
       mood: str(parsed.mood) ?? base.mood,
+      type: base.type,
     };
     return NextResponse.json({ ok: true, tokens, source: "llm" });
   } catch (e) {

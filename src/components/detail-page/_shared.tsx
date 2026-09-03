@@ -94,8 +94,13 @@ export function Headline({ children, className = "" }: { children: ReactNode; cl
   const scale = o?.headlineScale ?? 1;
   return (
     <h2
-      className={`font-extrabold leading-[1.32] tracking-[-0.02em] ${className}`}
-      style={{ fontSize: `${clamp(27 * scale, 18, 52)}px` }}
+      className={className}
+      style={{
+        fontSize: `calc(${clamp(27 * scale, 18, 52)}px * var(--dp-h-scale, 1))`,
+        fontWeight: "var(--dp-h-weight, 800)" as unknown as number,
+        letterSpacing: "var(--dp-h-tracking, -0.02em)",
+        lineHeight: "var(--dp-h-leading, 1.32)" as unknown as number,
+      }}
     >
       {children}
     </h2>
@@ -104,7 +109,12 @@ export function Headline({ children, className = "" }: { children: ReactNode; cl
 
 export function Sub({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <p className={`mt-4 text-[15px] leading-[1.75] text-ink-soft ${className}`}>{children}</p>
+    <p
+      className={`mt-4 text-[15px] text-ink-soft ${className}`}
+      style={{ lineHeight: "var(--dp-body-leading, 1.75)" as unknown as number }}
+    >
+      {children}
+    </p>
   );
 }
 
