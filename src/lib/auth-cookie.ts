@@ -14,6 +14,14 @@ export async function computeAuthToken(secret: string): Promise<string> {
     .join("");
 }
 
+/** 비밀번호 원문의 해시 (salt 포함). 코드/환경변수에 원문을 두지 않기 위함. */
+export async function hashPassword(pw: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`dpm-pw-v1:${pw}`));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 /** 상수시간 비교 */
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

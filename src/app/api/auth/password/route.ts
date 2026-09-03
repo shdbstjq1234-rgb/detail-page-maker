@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { APP_PASSWORD, AUTH_SECRET, authMode } from "@/lib/supabase/config";
-import { AUTH_COOKIE, computeAuthToken, safeEqual } from "@/lib/auth-cookie";
+import { APP_PASSWORD, APP_PASSWORD_SHA256, AUTH_SECRET, authMode } from "@/lib/supabase/config";
+import { AUTH_COOKIE, computeAuthToken, hashPassword, safeEqual } from "@/lib/auth-cookie";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "잘못된 요청입니다." }, { status: 400 });
   }
   const pw = (body.password ?? "").toString();
-  if (!pw || !safeEqual(pw, APP_PASSWORD)) {
+  const target = APP_PASSWORD ? await hashPassword(APP_PASSWORD) : APP_PASSWORD_SHA256;
+  if (!pw || !target || !safeEqual(await hashPassword(pw), target)) {
     return NextResponse.json({ ok: false, error: "비밀번호가 올바르지 않습니다." }, { status: 401 });
   }
   const token = await computeAuthToken(AUTH_SECRET);
