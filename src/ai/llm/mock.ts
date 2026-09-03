@@ -38,6 +38,8 @@ export class MockLlmClient implements LlmClient {
 interface Ctx {
   name: string;
   category: string;
+  /** 카피에 노출할 짧은 카테고리 ("스포츠/양말" → "양말") */
+  catShort: string;
   price?: number;
   features: string[];
   brandTone: string;
@@ -73,6 +75,7 @@ function parseContext(raw: string): Ctx {
   return {
     name,
     category,
+    catShort: cat,
     price,
     features: features.length ? features : ["자주 쓰는 기능에 집중", "받자마자 쉬운 사용", "오래 쓰는 마감"],
     brandTone: str(obj.brandTone) || "믿음직하고 깔끔한",
@@ -103,12 +106,12 @@ function pickHook(s?: string): string {
 
 function analysis(c: Ctx) {
   return {
-    oneLiner: `${c.name} — 매일 쓰는 ${c.category}, 다시 고민 없이.`,
+    oneLiner: `${c.name} — 매일 쓰는 ${c.catShort}, 다시 고민 없이.`,
     category: c.category,
     keyFeatures: c.features,
     specs: c.features,
     targetCustomers: [
-      { label: "20~30대 1인 가구", context: `${josa(c.category, "을를")} 자주 쓰지만 관리가 번거로운 사람`, priority: "primary" },
+      { label: "20~30대 1인 가구", context: `${josa(c.catShort, "을를")} 자주 쓰지만 관리가 번거로운 사람`, priority: "primary" },
       { label: "30~40대 주부", context: "가족이 매일 쓰는 물건은 검증된 걸 사고 싶은 사람", priority: "secondary" },
     ],
     customerProblems: [
@@ -207,7 +210,7 @@ function copyFor(label: string, c: Ctx) {
       return {
         ...base,
         headline: c.hook,
-        subheadline: `매일 쓰는 ${c.category}, 이런 차이가 생각보다 큽니다.`,
+        subheadline: `매일 쓰는 ${c.catShort}, 이런 차이가 생각보다 큽니다.`,
         bullets: f.slice(0, 3).map(short),
         cta: "옵션 확인하기",
       };
@@ -221,7 +224,7 @@ function copyFor(label: string, c: Ctx) {
     case "problem":
       return {
         ...base,
-        headline: `${c.category}, 쓰다 보면 꼭 이 부분이 걸립니다`,
+        headline: `${c.catShort}, 쓰다 보면 꼭 이 부분이 걸립니다`,
         subheadline: "큰 불편은 아닌데, 매일 반복되면 이야기가 달라집니다.",
         bullets: [
           "비슷해 보여서 뭘 골라야 할지 애매했습니다.",
