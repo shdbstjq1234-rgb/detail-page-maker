@@ -83,6 +83,14 @@ export interface EditorDoc {
   imagePlan?: ImageSlot[];
   /** 리뷰 (실제 + demo) */
   reviews?: Review[];
+  /** 선택한 브랜드 (라이브러리) */
+  brandId?: string;
+  brandSnapshot?: { name: string; displayName?: string; logoUrl?: string; brandColor?: string; prefixOn: boolean };
+  /** 선택한 모델(캐릭터) — 사람 외형만 참고 */
+  characterId?: string;
+  characterSnapshot?: { name: string; genderPresentation?: string; ageRange?: string; images: string[] };
+  /** 등록된 근거자료 요약 (QA·카피 생성이 참조) */
+  evidence?: { id: string; type: string; institution?: string; result: string; claimAllowed?: string }[];
 }
 
 /** DetailSectionData + 편집기 전용 레이아웃 설정 */

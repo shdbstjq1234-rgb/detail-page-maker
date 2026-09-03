@@ -37,9 +37,10 @@ export class NanoBananaProvider implements ImageProvider {
     const n = Math.max(1, Math.min(4, req.count || 1));
     // 레퍼런스는 한 번만 base64 로 변환해 재사용
     const ref = req.referenceImageUrl ? await toInlineData(req.referenceImageUrl) : null;
+    const charRef = req.characterImageUrl ? await toInlineData(req.characterImageUrl) : null;
 
     const settled = await Promise.allSettled(
-      Array.from({ length: n }, (_, i) => this.one(req, i, ref)),
+      Array.from({ length: n }, (_, i) => this.one(req, i, ref, charRef)),
     );
     const ok = settled
       .filter((s): s is PromiseFulfilledResult<ImageGenResult> => s.status === "fulfilled")
@@ -58,6 +59,7 @@ export class NanoBananaProvider implements ImageProvider {
     req: ImageGenRequest,
     i: number,
     ref: { mime_type: string; data: string } | null,
+    charRef: { mime_type: string; data: string } | null = null,
   ): Promise<ImageGenResult> {
     const { width, height } = ratioToSize(req.aspectRatio);
 
@@ -69,6 +71,16 @@ export class NanoBananaProvider implements ImageProvider {
           "Use the attached image ONLY as the exact product reference. " +
           "Reproduce the product's shape, proportions, colors, materials, logo and every detail identically. " +
           "Do not redesign, recolor or restyle the product itself.",
+      });
+    }
+    if (charRef) {
+      parts.push({ inline_data: charRef });
+      parts.push({
+        text:
+          "The second attached image is a CHARACTER reference. Use it ONLY for the person's identity: " +
+          "face, facial structure, hairstyle, skin appearance, body type and proportions. " +
+          "Do NOT copy clothing, shoes, accessories, bags, products, logos, props or background from it. " +
+          "All clothing and products must come from the PRODUCT reference image.",
       });
     }
     const negative = req.negativePrompt ? `\n\nStrictly avoid: ${req.negativePrompt}.` : "";

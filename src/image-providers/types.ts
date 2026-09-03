@@ -6,6 +6,8 @@ export interface ImageGenRequest {
   aspectRatio: "1:1" | "4:5" | "3:4" | "16:9" | "9:16";
   /** image-to-image 참고 이미지 */
   referenceImageUrl?: string;
+  /** 사람 외형(얼굴·체형)만 참고할 캐릭터 레퍼런스. 옷·소품은 절대 복사하지 않는다. */
+  characterImageUrl?: string;
   /** 이 요청으로 만들 후보 장수 */
   count: number;
   seed?: number;

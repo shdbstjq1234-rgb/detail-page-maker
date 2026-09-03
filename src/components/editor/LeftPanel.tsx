@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sparkles,
   Loader2,
@@ -18,6 +18,9 @@ import { uploadImage } from "@/lib/upload";
 import { ReviewPanel } from "./ReviewPanel";
 import { ShotListPanel } from "./ShotListPanel";
 import { ColorDirectionPanel } from "./ColorDirectionPanel";
+import { BrandPanel } from "./BrandPanel";
+import { EvidencePanel } from "./EvidencePanel";
+import { libraryApi, type PageReference } from "@/lib/library";
 import { Btn, DropZone, Field, ListEditor, Select, TextArea, TextInput } from "./ui";
 
 type Mutate = (fn: (d: EditorDoc) => void) => void;
@@ -265,6 +268,12 @@ export function LeftPanel({
         {/* ── 컬러 디렉팅 ── */}
         <ColorDirectionPanel doc={doc} mutate={mutate} />
 
+        {/* ── 브랜드 · 모델 라이브러리 ── */}
+        <BrandPanel doc={doc} mutate={mutate} projectId={projectId} />
+
+        {/* ── 근거자료 ── */}
+        <EvidencePanel doc={doc} mutate={mutate} projectId={projectId} />
+
         {/* ── 섹션 목록 ── */}
         <section className="space-y-2">
           <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">섹션 ({doc.sections.length})</h3>
@@ -353,6 +362,42 @@ function ReferenceAnalyzer({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ sectionOrder: string[]; tone: string; notes: string[]; source: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState<PageReference[] | null>(null);
+  const [savingRef, setSavingRef] = useState(false);
+
+  const loadSaved = async () => {
+    try {
+      setSaved(await libraryApi.listReferences());
+    } catch {
+      setSaved([]);
+    }
+  };
+  useEffect(() => {
+    void loadSaved();
+  }, []);
+
+  async function saveToLibrary() {
+    if (!result) return;
+    setSavingRef(true);
+    try {
+      const name = window.prompt("레퍼런스 이름", `${doc.product.category || "레퍼런스"} ${new Date().toLocaleDateString("ko-KR")}`);
+      if (!name) return;
+      const item = await libraryApi.saveReference({
+        name,
+        thumbUrl: img && img.length < 200_000 ? img : undefined,
+        analysis: {
+          sectionOrder: result.sectionOrder,
+          colorUsage: result.tone,
+          notes: result.notes?.join(" / "),
+        },
+      });
+      setSaved((p) => [item, ...(p ?? [])]);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSavingRef(false);
+    }
+  }
 
   async function analyze() {
     if (!img) return;
@@ -423,9 +468,51 @@ function ReferenceAnalyzer({
               ))}
             </ul>
           )}
-          <Btn variant="primary" className="w-full" onClick={() => onApply(result.sectionOrder as SectionType[], result.tone)}>
-            이 구조 적용
-          </Btn>
+          <div className="flex gap-1.5">
+            <Btn variant="primary" className="flex-1" onClick={() => onApply(result.sectionOrder as SectionType[], result.tone)}>
+              이 구조 적용
+            </Btn>
+            <Btn variant="default" onClick={saveToLibrary} disabled={savingRef}>
+              {savingRef ? <Loader2 size={11} className="animate-spin" /> : null} 라이브러리 저장
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {saved && saved.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-[10.5px] font-semibold text-neutral-500">저장한 레퍼런스 {saved.length}개</div>
+          <ul className="space-y-1">
+            {saved.map((r) => (
+              <li key={r.id} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-2 py-1.5">
+                {r.thumbUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.thumbUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                ) : null}
+                <button
+                  onClick={() => {
+                    const order = (r.analysis.sectionOrder ?? []) as SectionType[];
+                    if (order.length) onApply(order, r.analysis.colorUsage);
+                  }}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span className="block truncate text-[11px] font-semibold text-neutral-800">{r.name}</span>
+                  <span className="block truncate text-[10px] text-neutral-400">
+                    섹션 {r.analysis.sectionOrder?.length ?? 0}개 · 눌러서 적용
+                  </span>
+                </button>
+                <button
+                  onClick={async () => {
+                    setSaved((p) => (p ?? []).filter((x) => x.id !== r.id));
+                    await libraryApi.deleteReference(r.id).catch(() => void loadSaved());
+                  }}
+                  className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>

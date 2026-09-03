@@ -91,7 +91,13 @@ export function ShotListPanel({ doc, mutate, projectId }: { doc: EditorDoc; muta
         id: slot.id,
         run: async () => {
           const spec = specByKey.get(slot.presetKey);
-          const prompt = spec ? buildShotPrompt(spec, doc.product, visual, colorMood) : slot.prompt;
+          const character = doc.characterSnapshot
+            ? { id: doc.characterId ?? "", name: doc.characterSnapshot.name, images: doc.characterSnapshot.images, active: true,
+                genderPresentation: doc.characterSnapshot.genderPresentation, ageRange: doc.characterSnapshot.ageRange }
+            : null;
+          const prompt = spec ? buildShotPrompt(spec, doc.product, visual, colorMood, character) : slot.prompt;
+          // 모델컷이면 캐릭터 참고 이미지를 함께 넘긴다 (얼굴/체형만 사용)
+          const charRef = /model|모델|착용|lifestyle|라이프/i.test(slot.label) ? doc.characterSnapshot?.images?.[0] : undefined;
           const res = await fetch("/api/regenerate-image", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -101,6 +107,7 @@ export function ShotListPanel({ doc, mutate, projectId }: { doc: EditorDoc; muta
               aspectRatio: slot.ratio,
               count: 1,
               referenceImageUrl: slot.referenceUrl || cutout,
+              characterImageUrl: charRef,
             }),
           });
           const data = await res.json();

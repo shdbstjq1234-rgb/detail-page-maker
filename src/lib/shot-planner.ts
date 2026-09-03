@@ -11,6 +11,7 @@ import type { ImageRole, ProductInput, SectionType } from "@/types/detail-page";
 import type { AspectRatio } from "./image-presets";
 import { detectPreset } from "./category-presets";
 import type { VisualDirection } from "./design-direction";
+import { characterPromptBlock } from "./library";
 import { uid, type EditorSection, type ImageSlot } from "./editor-doc";
 
 /** 컷 하나의 기획 */
@@ -276,6 +277,7 @@ export function buildShotPrompt(
   product: ProductInput,
   visual?: VisualDirection,
   colorMood?: string,
+  character?: Parameters<typeof characterPromptBlock>[0],
 ): string {
   const name = product.name?.trim() || "the product";
   const material = product.material?.trim();
@@ -298,6 +300,7 @@ export function buildShotPrompt(
     `DETAIL: sharp on the product, natural depth of field, realistic contact shadow on the surface.`,
     `STYLE: ${visual?.photographyStyle ?? "korean e-commerce commercial photography"}, ${visual?.visualMood ?? "clean and trustworthy"}. Suitable for a Korean online store detail page.`,
     visual?.modelDirection ? `MODEL: ${visual.modelDirection}.` : "",
+    characterPromptBlock(character),
     `NEGATIVE: ${NEGATIVE}.`,
   ]
     .filter(Boolean)

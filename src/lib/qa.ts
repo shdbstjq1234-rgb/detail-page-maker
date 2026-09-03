@@ -83,9 +83,13 @@ export function runQa(doc: EditorDoc): QaFinding[] {
   const productHay = `${p.name ?? ""} ${p.category ?? ""} ${p.description ?? ""} ${(p.features ?? []).join(" ")} ${(
     p.specs ?? []
   ).join(" ")}`.toLowerCase();
+  const registered = (doc.evidence ?? [])
+    .flatMap((e) => [e.result, e.claimAllowed, e.type, e.institution])
+    .filter(Boolean)
+    .join(" ");
   const evidenceHay = `${p.description ?? ""} ${(p.specs ?? []).join(" ")} ${(p.features ?? []).join(" ")} ${(
     p.sellingPoints ?? []
-  ).join(" ")} ${p.material ?? ""} ${p.size ?? ""}`.toLowerCase();
+  ).join(" ")} ${p.material ?? ""} ${p.size ?? ""} ${registered}`.toLowerCase();
 
   // 상품명에서 뽑은 "우리 상품 종류" 명사 (혼입 탐지 시 예외)
   const ownNouns = new Set(PRODUCT_NOUNS.filter((w) => productHay.includes(w)));
@@ -170,7 +174,7 @@ export function runQa(doc: EditorDoc): QaFinding[] {
         sectionId: sec.id,
         sectionLabel: label,
         title: `근거가 없는 ${claimLabel} — “${token}”`,
-        detail: "사용자가 입력한 스펙·시험자료에 없는 수치/인증/효능입니다. 실제 근거를 넣거나 표현을 빼주세요.",
+        detail: "등록된 스펙·근거자료에 없는 수치/인증/효능입니다. 왼쪽 ‘근거자료(Evidence)’에 시험성적서를 등록하거나 표현을 빼주세요.",
       });
       break;
     }
