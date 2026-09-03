@@ -1,6 +1,15 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { SUPABASE_ANON_KEY, SUPABASE_URL, isCloudMode, isEmailAllowed } from "./config";
+import {
+  AUTH_SECRET,
+  OWNER_USER_ID,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  authMode,
+  isCloudMode,
+  isEmailAllowed,
+} from "./config";
+import { AUTH_COOKIE, computeAuthToken, safeEqual } from "@/lib/auth-cookie";
 
 /** 서버(Route Handler / Server Component)용 Supabase 클라이언트. 로컬 모드면 null. */
 export async function getServerSupabase() {
@@ -27,6 +36,18 @@ export async function getServerSupabase() {
  */
 export async function getAuthedUser() {
   if (!isCloudMode) return { local: true as const, id: "local", email: null };
+
+  // 비밀번호 게이트 모드: 쿠키만 검증하고 고정 소유자로 취급
+  if (authMode === "password") {
+    const jar = await cookies();
+    const token = jar.get(AUTH_COOKIE)?.value ?? "";
+    const expected = await computeAuthToken(AUTH_SECRET);
+    if (token && safeEqual(token, expected)) {
+      return { local: false as const, id: OWNER_USER_ID, email: "owner" };
+    }
+    return null;
+  }
+
   const supabase = await getServerSupabase();
   if (!supabase) return null;
   const {

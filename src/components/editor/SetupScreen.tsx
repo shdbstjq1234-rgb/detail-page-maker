@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2, Star, Trash2, Upload, ChevronDown } from "lucide-react";
+import { Sparkles, Loader2, Star, Trash2, Upload, ChevronDown, ClipboardPaste, Wand2 } from "lucide-react";
 import type { PipelineEvent, ProductImageRef } from "@/types/detail-page";
 import type { EditorDoc } from "@/lib/editor-doc";
 import { uploadImage } from "@/lib/upload";
@@ -33,7 +33,63 @@ export function SetupScreen({
   const p = doc.product;
   const [more, setMore] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseMsg, setParseMsg] = useState<string | null>(null);
+  const [parseNote, setParseNote] = useState<string | null>(null);
   const imgs = p.images ?? [];
+
+  async function runParse() {
+    const text = pasteText.trim();
+    if (text.length < 4 || parsing) return;
+    setParsing(true);
+    setParseMsg(null);
+    setParseNote(null);
+    try {
+      const res = await fetch("/api/parse-info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setParseMsg(data.error || "분석에 실패했습니다.");
+        return;
+      }
+      const f = data.fields as Record<string, unknown>;
+      const filled: string[] = [];
+      mutate((d) => {
+        const pr = d.product as unknown as Record<string, unknown>;
+        const setIf = (key: string, val: unknown, label: string) => {
+          if (val === undefined || val === null || val === "") return;
+          if (Array.isArray(val) && val.length === 0) return;
+          pr[key] = val;
+          filled.push(label);
+        };
+        setIf("name", f.name, "상품명");
+        setIf("category", f.category, "카테고리");
+        setIf("price", f.price, "가격");
+        setIf("description", f.description, "설명");
+        setIf("material", f.material, "소재");
+        setIf("size", f.size, "크기");
+        setIf("components", f.components, "구성품");
+        setIf("targetCustomer", f.targetCustomer, "타깃");
+        setIf("salesChannel", f.salesChannel, "판매채널");
+        setIf("brandTone", f.brandTone, "브랜드 톤");
+        setIf("features", f.features, "주요 특징");
+        setIf("specs", f.specs, "스펙");
+        setIf("sellingPoints", f.sellingPoints, "판매 포인트");
+      });
+      setParseMsg(filled.length ? `${filled.length}개 항목을 채웠어요 · ${filled.join(", ")}` : "옮길 수 있는 정보를 찾지 못했어요.");
+      if (typeof data.notes === "string" && data.notes.trim()) setParseNote(data.notes.trim());
+      if (filled.length) setMore(true);
+    } catch (err) {
+      setParseMsg(err instanceof Error ? err.message : "분석 중 오류가 발생했습니다.");
+    } finally {
+      setParsing(false);
+    }
+  }
   const canGo = Boolean(p.name?.trim()) || imgs.length > 0;
 
   const lastStage = events.length ? events[events.length - 1].stage : null;
@@ -124,6 +180,53 @@ export function SetupScreen({
         )}
       </div>
 
+      {/* 정보 붙여넣기 → 자동 채우기 */}
+      <div className="mt-5 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+        <button
+          onClick={() => setPasteOpen((v) => !v)}
+          className="flex w-full items-center gap-1.5 text-[12.5px] font-bold text-violet-800"
+        >
+          <ClipboardPaste size={14} />
+          받은 상품 자료를 통째로 붙여넣기
+          <ChevronDown size={14} className={`ml-auto transition-transform ${pasteOpen ? "rotate-180" : ""}`} />
+        </button>
+        {pasteOpen && (
+          <div className="mt-2.5 space-y-2">
+            <p className="text-[11px] leading-relaxed text-violet-700/80">
+              셀러에게 받은 원문·스펙표·메모를 그대로 넣으면 상품명·소재·크기·구성·특징 등 해당 칸에 알아서 나눠 넣습니다.
+              원문에 없는 인증·수치는 만들지 않습니다.
+            </p>
+            <TextArea
+              rows={5}
+              value={pasteText}
+              placeholder={"예)\n상품명: 논슬립 러닝 양말\n소재: 폴리에스터 78%, 스판덱스 22%\n사이즈: 250-275mm\n특징\n- 발바닥 실리콘 논슬립\n- 발목 지지 밴드\n- 메쉬 통기 구조"}
+              onChange={(e) => setPasteText(e.target.value)}
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={runParse}
+                disabled={parsing || pasteText.trim().length < 4}
+                className="flex items-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-[12px] font-bold text-white hover:bg-violet-800 disabled:opacity-40"
+              >
+                {parsing ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
+                {parsing ? "분석 중…" : "자동으로 채우기"}
+              </button>
+              {pasteText && !parsing && (
+                <button onClick={() => setPasteText("")} className="text-[11px] text-violet-600 underline">
+                  지우기
+                </button>
+              )}
+            </div>
+            {parseMsg && <p className="text-[11px] font-medium text-violet-800">{parseMsg}</p>}
+            {parseNote && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
+                {parseNote}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 필수 최소 정보 */}
       <div className="mt-5 space-y-3">
         <Field label="상품명">
@@ -188,6 +291,17 @@ export function SetupScreen({
           <Field label="브랜드 톤">
             <TextInput value={p.brandTone ?? ""} placeholder="미니멀·프리미엄" onChange={(e) => mutate((d) => void (d.product.brandTone = e.target.value))} />
           </Field>
+          <Field label="소재 / 재질">
+            <TextInput value={p.material ?? ""} placeholder="폴리에스터 78% 스판 22%" onChange={(e) => mutate((d) => void (d.product.material = e.target.value))} />
+          </Field>
+          <Field label="크기 / 사이즈">
+            <TextInput value={p.size ?? ""} placeholder="250-275mm" onChange={(e) => mutate((d) => void (d.product.size = e.target.value))} />
+          </Field>
+          <div className="col-span-2">
+            <Field label="구성품">
+              <TextInput value={p.components ?? ""} placeholder="본품 2족, 파우치 1개" onChange={(e) => mutate((d) => void (d.product.components = e.target.value))} />
+            </Field>
+          </div>
           <div className="col-span-2">
             <Field label="추가 요청사항">
               <TextArea rows={2} value={p.extraRequest ?? ""} placeholder="가격은 강조하지 말고 품질 위주로 / 20대 여성 타깃 등" onChange={(e) => mutate((d) => void (d.product.extraRequest = e.target.value))} />

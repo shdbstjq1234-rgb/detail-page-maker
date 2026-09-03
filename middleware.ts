@@ -1,25 +1,45 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { SUPABASE_ANON_KEY, SUPABASE_URL, isCloudMode, isEmailAllowed } from "@/lib/supabase/config";
+import {
+  AUTH_SECRET,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  authMode,
+  isEmailAllowed,
+} from "@/lib/supabase/config";
+import { AUTH_COOKIE, computeAuthToken, safeEqual } from "@/lib/auth-cookie";
+
+const PUBLIC_PREFIXES = ["/login", "/auth/", "/api/auth/", "/_next/"];
+const isPublicPath = (pathname: string) =>
+  pathname === "/favicon.ico" || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
 /**
- * 클라우드 모드에서만 동작: 세션 쿠키 갱신 + 허용 이메일 게이트.
- * 로컬 모드(Supabase 미설정)면 그대로 통과.
+ * 인증 게이트.
+ *  - local    : 통과
+ *  - password : APP_PASSWORD 쿠키 검사
+ *  - supabase : Supabase 세션 + ALLOWED_EMAIL
  */
 export async function middleware(req: NextRequest) {
-  if (!isCloudMode) return NextResponse.next();
+  if (authMode === "local") return NextResponse.next();
 
   const { pathname } = req.nextUrl;
-  // 로그인/콜백/정적 리소스는 통과
-  if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/auth/") ||
-    pathname.startsWith("/_next/") ||
-    pathname === "/favicon.ico"
-  ) {
-    return NextResponse.next();
+  if (isPublicPath(pathname)) return NextResponse.next();
+
+  // ── 비밀번호 게이트 모드 ─────────────────────────────
+  if (authMode === "password") {
+    const token = req.cookies.get(AUTH_COOKIE)?.value ?? "";
+    const expected = await computeAuthToken(AUTH_SECRET);
+    if (token && safeEqual(token, expected)) return NextResponse.next();
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ ok: false, error: "로그인이 필요합니다." }, { status: 401 });
+    }
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
   }
 
+  // ── Supabase Auth 모드 ─────────────────────────────
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {

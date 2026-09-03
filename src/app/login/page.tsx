@@ -1,15 +1,19 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { isCloudMode } from "@/lib/supabase/config";
+
+type Mode = "local" | "password" | "supabase" | "loading";
 
 function LoginInner() {
   const params = useSearchParams();
   const from = params.get("from") || "/";
   const errParam = params.get("error");
+  const [mode, setMode] = useState<Mode>("loading");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [msg, setMsg] = useState<string | null>(
     errParam === "not_allowed"
@@ -20,8 +24,17 @@ function LoginInner() {
   );
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    fetch("/api/auth/mode")
+      .then((r) => r.json())
+      .then((d) => setMode(d?.mode ?? (isCloudMode ? "supabase" : "local")))
+      .catch(() => setMode(isCloudMode ? "supabase" : "local"));
+  }, []);
+
   const redirectTo =
-    typeof window !== "undefined" ? `${window.location.origin}/auth/callback?from=${encodeURIComponent(from)}` : undefined;
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback?from=${encodeURIComponent(from)}`
+      : undefined;
 
   async function google() {
     const sb = getBrowserSupabase();
@@ -46,6 +59,30 @@ function LoginInner() {
     else setSent(true);
   }
 
+  async function passwordLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!password) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = from;
+      } else {
+        setMsg(data.error || "로그인에 실패했습니다.");
+        setBusy(false);
+      }
+    } catch {
+      setMsg("로그인 중 오류가 발생했습니다.");
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#F7F7F5] px-4">
       <div className="w-full max-w-[360px]">
@@ -55,13 +92,35 @@ function LoginInner() {
           <p className="mt-1 text-[13px] text-neutral-500">허용된 계정만 접근할 수 있는 개인용 도구입니다.</p>
         </div>
 
-        {!isCloudMode ? (
+        {mode === "loading" ? (
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 text-center text-[13px] text-neutral-400">
+            불러오는 중…
+          </div>
+        ) : mode === "local" ? (
           <div className="rounded-xl border border-neutral-200 bg-white p-5 text-center text-[13px] text-neutral-600">
             현재 <b>로컬 모드</b>로 실행 중입니다. 로그인 없이 사용하세요.
             <a href="/" className="mt-4 block rounded-lg bg-neutral-900 py-2.5 font-semibold text-white">
               바로 시작하기
             </a>
           </div>
+        ) : mode === "password" ? (
+          <form onSubmit={passwordLogin} className="space-y-2 rounded-xl border border-neutral-200 bg-white p-5">
+            <input
+              type="password"
+              required
+              autoFocus
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호"
+              className="w-full rounded-lg border border-neutral-200 px-3 py-2.5 text-[13px] outline-none focus:border-neutral-900"
+            />
+            <button
+              disabled={busy}
+              className="w-full rounded-lg bg-neutral-900 py-2.5 text-[13px] font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {busy ? "확인 중…" : "들어가기"}
+            </button>
+          </form>
         ) : sent ? (
           <div className="rounded-xl border border-neutral-200 bg-white p-5 text-center text-[13px] text-neutral-700">
             <b>{email}</b> 로 로그인 링크를 보냈습니다.
