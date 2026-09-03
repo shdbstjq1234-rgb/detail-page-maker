@@ -66,12 +66,12 @@ function parseContext(raw: string): Ctx {
   const hook =
     (sp[0] && sp[0].trim()) ||
     (desc && desc.split(/[.\n·]/)[0].trim()) ||
-    `매일 쓰는 ${cat}, 이런 부분이 은근히 중요합니다`;
+    `${cat}, 이 부분이 은근히 중요합니다`;
   return {
     name,
     category,
     price,
-    features: features.length ? features : [`${name}만의 설계`, "간편한 사용", "검증된 품질"],
+    features: features.length ? features : ["자주 쓰는 기능에 집중", "받자마자 쉬운 사용", "오래 쓰는 마감"],
     brandTone: str(obj.brandTone) || "믿음직하고 깔끔한",
     hook,
   };
@@ -187,7 +187,7 @@ function copyFor(label: string, c: Ctx) {
       return {
         ...base,
         headline: c.hook,
-        subheadline: `매일 쓰는 ${c.category}라면, 이 차이가 생각보다 큽니다.`,
+        subheadline: `매일 쓰는 ${c.category}, 이런 차이가 생각보다 큽니다.`,
         bullets: f.slice(0, 3).map(short),
         cta: "옵션 확인하기",
       };
@@ -223,14 +223,16 @@ function copyFor(label: string, c: Ctx) {
         subheadline: "기능 자체보다, 쓸 때 뭐가 달라지는지를 보시면 됩니다.",
         bullets: f.map((x) => `${short(x)} — 필요할 때 바로, 쓰고 나면 간단하게.`),
       };
-    case "featureDetail":
+    case "featureDetail": {
+      const detailTopic = f[0] && !/기능|사용|마감|품질/.test(f[0]) ? `${short(f[0])}, ` : "";
       return {
         ...base,
-        headline: `${short(f[0] ?? "이 부분")}, 왜 신경 썼냐면`,
+        headline: `${detailTopic}왜 이 부분을 신경 썼냐면`,
         subheadline: "눈에 잘 띄지는 않아도, 매일 쓸 때 체감이 가장 큰 부분입니다.",
         body: `${short(c.name)}에서 가장 많이 물어보시는 게 이 부분입니다. 처음엔 사소해 보여도, 반복해서 쓰다 보면 여기서 편함이 갈립니다. 그래서 실제 사용하는 자세와 상황을 기준으로 잡았습니다.`,
         bullets: f.slice(0, 3).map(short),
       };
+    }
     case "lifestyle":
       return {
         ...base,
