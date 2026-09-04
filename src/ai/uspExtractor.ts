@@ -2,6 +2,7 @@ import type { LlmClient } from "./llm/client";
 import { getLlmClient } from "./llm/client";
 import { extractJson, clampScore } from "@/lib/json";
 import type { ProductInput, ProductAnalysis, USP, USPSet } from "@/types/detail-page";
+import { productDepth } from "./productAnalyzer";
 
 const SYSTEM = `너는 한국 이커머스 상세페이지 카피라이터다.
 상품 분석 결과에서 "가장 잘 팔리는 한 문장"을 뽑는 것이 목표다.
@@ -15,7 +16,9 @@ export async function extractUSP(
 ): Promise<USPSet> {
   const llm = opts.llm ?? (await getLlmClient());
 
-  const user = `아래 상품과 분석을 바탕으로 USP 를 3~5개 뽑아 JSON 으로 답하라.
+  const depth = productDepth(input, analysis);
+  const user = `아래 상품과 분석을 바탕으로 USP 를 뽑아 JSON 으로 답하라.
+소구점 개수는 ${depth.usp}개 내외로. 정보가 부족하면 억지로 늘리지 말고 줄여라.
 
 [상품]
 ${input.name} / ${analysis.category} / ${input.price ? input.price + "원" : "가격미정"}

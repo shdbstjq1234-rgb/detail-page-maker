@@ -83,3 +83,22 @@ function nonEmpty(v: string[] | undefined, fallback: string[]): string[] {
   const cleaned = (v ?? []).map((s) => String(s).trim()).filter(Boolean);
   return cleaned.length ? cleaned : fallback.filter(Boolean);
 }
+
+/**
+ * 상품 정보량 → 상세페이지 깊이.
+ * 간단한 상품에 12개 섹션을 강제하면 늘어지고, 기능 많은 상품에 6개면 근거가 부족하다.
+ */
+export function productDepth(input: ProductInput, analysis?: { keyFeatures?: string[]; specs?: string[] }) {
+  const signals =
+    (input.specs?.length ?? 0) +
+    (input.features?.length ?? 0) +
+    (input.sellingPoints?.length ?? 0) +
+    (analysis?.keyFeatures?.length ?? 0) +
+    (input.description ? Math.min(4, Math.floor(input.description.length / 60)) : 0) +
+    (input.material ? 1 : 0) +
+    (input.size ? 1 : 0) +
+    (input.components ? 1 : 0);
+  if (signals <= 4) return { level: "simple" as const, usp: 3, sections: 7 };
+  if (signals <= 10) return { level: "normal" as const, usp: 5, sections: 10 };
+  return { level: "rich" as const, usp: 8, sections: 13 };
+}

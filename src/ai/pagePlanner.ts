@@ -10,6 +10,7 @@ import type {
   SectionType,
   ImageRole,
 } from "@/types/detail-page";
+import { productDepth } from "./productAnalyzer";
 
 const SECTION_TYPES: SectionType[] = [
   "hero",
@@ -58,6 +59,7 @@ export async function planPage(
 ): Promise<PagePlan> {
   const llm = opts.llm ?? (await getLlmClient());
 
+  const depth = productDepth(input, analysis);
   const user = `아래 정보로 상세페이지 섹션 구성을 설계해 JSON 으로 답하라.
 
 [상품] ${input.name} / ${analysis.category}
@@ -85,7 +87,7 @@ ${IMAGE_ROLES.join(", ")}
     }
   ]
 }
-섹션은 6~12개. 첫 섹션은 반드시 hero, 마지막은 반드시 cta.`;
+섹션은 ${depth.sections}개 내외. 쓸데없이 늘리지 말고, 근거가 없는 섹션은 빼라. 첫 섹션은 반드시 hero, 마지막은 반드시 cta.`;
 
   const text = await llm.complete({
     system: SYSTEM,

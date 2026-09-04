@@ -44,6 +44,9 @@ interface Ctx {
   features: string[];
   brandTone: string;
   hook: string;
+  /** 정보량 기준 목표 개수 */
+  uspCount: number;
+  sectionCount: number;
 }
 
 function parseContext(raw: string): Ctx {
@@ -72,11 +75,17 @@ function parseContext(raw: string): Ctx {
     pickHook(sp[0]) ||
     pickHook(firstSentence) ||
     `${cat}, 이 부분이 은근히 중요합니다`;
+  // 정보가 적은 상품에 12섹션을 강제하지 않는다
+  const signals = features.length + (desc ? Math.min(4, Math.floor(desc.length / 60)) : 0) + (price ? 1 : 0);
+  const [uspCount, sectionCount] = signals <= 4 ? [3, 7] : signals <= 10 ? [5, 10] : [8, 13];
+
   return {
     name,
     category,
     catShort: cat,
     price,
+    uspCount,
+    sectionCount,
     features: features.length ? features : ["자주 쓰는 기능에 집중", "받자마자 쉬운 사용", "오래 쓰는 마감"],
     brandTone: str(obj.brandTone) || "믿음직하고 깔끔한",
     hook,
@@ -142,31 +151,27 @@ function analysis(c: Ctx) {
 }
 
 function uspSet(c: Ctx) {
-  const ranked = [
-    {
-      headline: `${c.features[0] ?? "핵심 기능"}, 첫 사용부터 체감`,
-      rationale: "가장 강한 차별점을 최상단에서 즉시 보여준다",
-      proofPoints: ["실사용 후기 다수", "재구매율 상위", "3초 안에 이해되는 구조"],
-      strength: 92,
-    },
-    {
-      headline: "싼 제품과는 다른 마감",
-      rationale: "품질 불안이라는 구매 장벽을 정면으로 해소",
-      proofPoints: ["소재 스펙 공개", "내구 테스트", "1:1 비교컷"],
-      strength: 78,
-    },
-    {
-      headline: "관리가 거의 필요 없다",
-      rationale: "번거로움이라는 이탈 요인 제거",
-      proofPoints: ["세척 간편", "부품 교체 주기 김"],
-      strength: 65,
-    },
+  const short = (x: string) => String(x).split(/[·,:\-—(]/)[0].trim().slice(0, 16);
+  // 상품이 실제로 가진 특징에서 뽑고, 모자라면 공통 소구점으로 채운다
+  const fromFeatures = c.features.map((f, i) => ({
+    headline: `${short(f)}, 쓸수록 체감`,
+    rationale: "실제 사용에서 가장 먼저 느껴지는 차이",
+    proofPoints: [short(f)],
+    strength: 92 - i * 6,
+  }));
+  const fallback = [
+    { headline: "싼 제품과는 다른 마감", rationale: "품질 불안이라는 구매 장벽을 해소", proofPoints: ["소재 스펙 공개"], strength: 62 },
+    { headline: "관리가 거의 필요 없다", rationale: "번거로움이라는 이탈 요인 제거", proofPoints: ["세척 간편"], strength: 58 },
+    { headline: "매일 쓰기 좋은 크기", rationale: "일상 사용 빈도를 높인다", proofPoints: ["휴대·보관 편의"], strength: 54 },
   ];
+  const ranked = [...fromFeatures, ...fallback].slice(0, Math.max(3, c.uspCount));
   return { ranked, primary: ranked[0] };
 }
 
 function pagePlan(c: Ctx) {
-  const sections = [
+  // core = 정보가 적어도 반드시 필요한 섹션, extra = 근거가 있을 때만 늘리는 섹션
+  const CORE = new Set(["hero", "usp", "problem", "solution", "feature", "productInfo", "cta"]);
+  const all = [
     { id: "s-hero", type: "hero", message: `${c.name}, 한 장으로 이해되는 이유`, reason: "첫 화면에서 제품 정체성과 최강 USP 노출", imageRoles: ["heroMain"] },
     { id: "s-usp", type: "usp", message: "가장 강한 장점 3가지", reason: "스크롤 초반에 핵심 가치 압축 전달", imageRoles: ["productCutout", "infographic"] },
     { id: "s-problem", type: "problem", message: "이런 불편, 겪어봤다면", reason: "공감 → 몰입 유도", imageRoles: ["usageScene"] },
@@ -179,6 +184,13 @@ function pagePlan(c: Ctx) {
     { id: "s-productInfo", type: "productInfo", message: "제품 정보 / 구성", reason: "구매 직전 사실 확인", imageRoles: ["productCutout", "sizeReference"] },
     { id: "s-cta", type: "cta", message: "지금이 가장 좋은 선택", reason: "마지막 구매 푸시", imageRoles: ["heroMain"] },
   ];
+  let budget = Math.max(CORE.size, c.sectionCount) - CORE.size;
+  const sections = all.filter((s) => {
+    if (CORE.has(s.type)) return true;
+    if (budget <= 0) return false;
+    budget -= 1;
+    return true;
+  });
   return {
     sections,
     strategy: `${c.brandTone} 톤으로, 상단에 최강 USP → 공감 → 해결 → 근거 → 비교 → 안심 순으로 배치해 구매전환에 최적화`,
